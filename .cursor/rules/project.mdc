@@ -10,7 +10,10 @@ Monorepo B2B multi-tenant — marketplace, reserva de estoque com TTL, JWT próp
 ## Setup
 
 ```bash
-pnpm docker:up && pnpm minio:setup && pnpm db:setup && pnpm dev
+# Dev local (infra no Docker; API/Web com pnpm)
+pnpm docker:dev:up && pnpm minio:setup && pnpm db:setup && pnpm dev
+
+# Prod simulado local (stack completa buildada): pnpm docker:dev:down && pnpm docker:prod:up
 ```
 
 `.env` fica na **raiz** do monorepo (API e web carregam de lá).

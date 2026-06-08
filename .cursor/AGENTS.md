@@ -11,8 +11,10 @@ Plataforma B2B multi-tenant com concorrência de estoque. Detalhes em `.cursor/r
 ## Comandos
 
 ```bash
-pnpm docker:up && pnpm minio:setup && pnpm db:setup && pnpm dev
+pnpm docker:dev:up && pnpm minio:setup && pnpm db:setup && pnpm dev
 ```
+
+Prod simulado (stack Docker completa): `pnpm docker:dev:down && pnpm docker:prod:up`
 
 Demo: `loja-alfa@demo.com` / `password123` (comprar na Loja Beta via marketplace)
 

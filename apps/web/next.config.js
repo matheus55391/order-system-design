@@ -10,6 +10,8 @@ config({ path: path.join(rootDir, ".env") });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
+  outputFileTracingRoot: rootDir,
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [

@@ -13,13 +13,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json && cp -r src/generated dist/generated",
     "prebuild": "pnpm db:generate",
-    "db:generate": "sh -c 'set -a && . ../../.env && set +a && prisma generate'",
-    "db:migrate": "sh -c 'set -a && . ../../.env && set +a && prisma migrate dev'",
-    "db:migrate:deploy": "sh -c 'set -a && . ../../.env && set +a && prisma migrate deploy'",
-    "db:reset": "sh -c 'set -a && . ../../.env && set +a && prisma migrate reset --force'",
-    "db:push": "sh -c 'set -a && . ../../.env && set +a && prisma db push'",
-    "db:seed": "sh -c 'set -a && . ../../.env && set +a && tsx prisma/seed.ts'",
-    "db:studio": "sh -c 'set -a && . ../../.env && set +a && prisma studio'"
+    "db:generate": "sh -c 'if [ -f ../../.env ]; then set -a && . ../../.env && set +a; fi; prisma generate'",
+    "db:migrate": "sh -c 'if [ -f ../../.env ]; then set -a && . ../../.env && set +a; fi; prisma migrate dev'",
+    "db:migrate:deploy": "sh -c 'if [ -f ../../.env ]; then set -a && . ../../.env && set +a; fi; prisma migrate deploy'",
+    "db:reset": "sh -c 'if [ -f ../../.env ]; then set -a && . ../../.env && set +a; fi; prisma migrate reset --force'",
+    "db:push": "sh -c 'if [ -f ../../.env ]; then set -a && . ../../.env && set +a; fi; prisma db push'",
+    "db:seed": "sh -c 'if [ -f ../../.env ]; then set -a && . ../../.env && set +a; fi; tsx prisma/seed.ts'",
+    "db:studio": "sh -c 'if [ -f ../../.env ]; then set -a && . ../../.env && set +a; fi; prisma studio'"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0"

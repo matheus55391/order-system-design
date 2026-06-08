@@ -1,0 +1,155 @@
+# Prod simulado local — stack completa (infra + API + Web buildados + migrate/seed).
+# Não rode junto com o dev: mesmas portas (3000, 3001, 5432, …).
+# Antes: pnpm docker:dev:down
+# Uso: cp .env.prod.example .env.prod && pnpm docker:prod:up
+# Projeto Docker isolado: order-system-prod
+
+name: order-system-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: order_system
+      POSTGRES_PASSWORD: order_system
+      POSTGRES_DB: order_system
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_system -d order_system"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: order_system
+      RABBITMQ_DEFAULT_PASS: order_system
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: order_system
+      MINIO_ROOT_PASSWORD: order_system
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      - ./packages/database/seed-assets:/assets:ro
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 order_system order_system; do sleep 1; done;
+      mc mb local/products --ignore-existing;
+      mc anonymous set download local/products;
+      mc cp /assets/default-product.webp local/products/default-product.webp;
+      echo 'MinIO seed asset uploaded';
+      "
+    restart: "no"
+
+  db-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: db-setup
+    env_file: .env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    env_file: .env.prod
+    ports:
+      - "3001:3001"
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/docs').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+        NEXT_PUBLIC_MINIO_PUBLIC_URL: http://localhost:9000
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:
