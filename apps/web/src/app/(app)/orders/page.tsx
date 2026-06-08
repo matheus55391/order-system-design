@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -9,9 +8,9 @@ import { OrdersTable } from "@/components/orders/orders-table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import type { OrdersViewMode } from "@/lib/order-status";
-import { queryKeys } from "@/lib/query-keys";
+import { useGetIncomingOrdersQuery } from "@/query/get-incoming-orders.query";
+import { useGetOrdersQuery } from "@/query/get-orders.query";
 import type { OrderResponseDto } from "@repo/shared";
-import { ordersService } from "@repo/shared/data-access";
 
 const tabs: { id: OrdersViewMode; label: string }[] = [
   { id: "incoming", label: "Recebidos" },
@@ -26,17 +25,10 @@ export default function OrdersPage() {
   );
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const { data: incomingOrders, isPending: incomingPending } = useQuery({
-    queryKey: queryKeys.ordersIncoming(tenantId),
-    queryFn: () => ordersService.getIncomingOrders(),
-    enabled: Boolean(tenantId),
-  });
-
-  const { data: outgoingOrders, isPending: outgoingPending } = useQuery({
-    queryKey: queryKeys.orders(tenantId),
-    queryFn: () => ordersService.getOrders(),
-    enabled: Boolean(tenantId),
-  });
+  const { data: incomingOrders, isPending: incomingPending } =
+    useGetIncomingOrdersQuery(tenantId);
+  const { data: outgoingOrders, isPending: outgoingPending } =
+    useGetOrdersQuery(tenantId);
 
   const orders = mode === "incoming" ? incomingOrders : outgoingOrders;
   const isPending =

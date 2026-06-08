@@ -1,11 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Clock, Lock, Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ProductImage } from "@/components/product-image";
@@ -19,18 +17,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTenantId } from "@/hooks/use-tenant-id";
+import { useCancelReservationMutation } from "@/query/cancel-reservation.mutation";
+import { useConfirmOrderMutation } from "@/query/confirm-order.mutation";
+import { useGetCartQuery } from "@/query/get-cart.query";
+import { useGetReservationsQuery } from "@/query/get-reservations.query";
+import { useRemoveCartItemMutation } from "@/query/remove-cart-item.mutation";
+import { useReserveFromCartMutation } from "@/query/reserve-from-cart.mutation";
+import { useUpdateCartQuantityMutation } from "@/query/update-cart-quantity.mutation";
 import { useAuthStore } from "@/store";
-import { queryKeys } from "@/lib/query-keys";
-import {
-  revalidateCheckout,
-  revalidateInBackground,
-} from "@/lib/query-cache";
-import { ApiError } from "@repo/shared/data-access";
-import {
-  cartService,
-  ordersService,
-  reservationsService,
-} from "@repo/shared/data-access";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -116,7 +110,6 @@ export default function StoreCartPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const queryClient = useQueryClient();
   const router = useRouter();
   const tenantId = useTenantId()!;
   const ownSlug = useAuthStore((s) => s.user?.tenant.slug);
@@ -129,104 +122,27 @@ export default function StoreCartPage({
     }
   }, [isOwnStore, router]);
 
-  const { data: cart, isPending: cartPending } = useQuery({
-    queryKey: queryKeys.cart(tenantId, slug),
-    queryFn: () => cartService.getCart(slug),
-    enabled: Boolean(tenantId) && !isOwnStore,
-  });
-
-  const { data: reservations, isPending: reservationsPending } = useQuery({
-    queryKey: queryKeys.reservations(tenantId),
-    queryFn: () => reservationsService.getReservations(),
-    enabled: Boolean(tenantId),
-    refetchInterval: 5_000,
-  });
+  const { data: cart, isPending: cartPending } = useGetCartQuery(
+    tenantId,
+    slug,
+    !isOwnStore,
+  );
+  const { data: reservations, isPending: reservationsPending } =
+    useGetReservationsQuery(tenantId, { refetchInterval: 5_000 });
 
   const storeReservations = useMemo(() => {
     if (!cart?.store.id || !reservations) return [];
     return reservations.filter((r) => r.priceTenantId === cart.store.id);
   }, [cart?.store.id, reservations]);
 
-  const revalidateCheckoutData = () => {
-    if (!tenantId) return;
-    revalidateCheckout(queryClient, tenantId, slug);
-  };
-
-  const removeCartItem = useMutation({
-    mutationFn: (itemId: string) => cartService.removeItem(itemId),
-    onSuccess: () => {
-      toast.success("Item removido");
-      revalidateCheckoutData();
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao remover",
-      );
-    },
-  });
-
-  const updateQuantity = useMutation({
-    mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
-      cartService.updateItem(itemId, { quantity }),
-    onSuccess: revalidateCheckoutData,
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao atualizar quantidade",
-      );
-    },
-  });
-
-  const reserveFromCart = useMutation({
-    mutationFn: () => {
-      if (!cart?.store.id) throw new Error("Loja inválida");
-      return reservationsService.reserveFromCart({
-        priceTenantId: cart.store.id,
-      });
-    },
-    onSuccess: () => {
-      toast.success("Estoque reservado");
-      revalidateCheckoutData();
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao reservar",
-      );
-    },
-  });
-
-  const cancelReservation = useMutation({
-    mutationFn: (id: string) => reservationsService.cancelReservation(id),
-    onSuccess: () => {
-      toast.success("Reserva cancelada");
-      revalidateCheckoutData();
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao cancelar",
-      );
-    },
-  });
-
-  const confirmOrder = useMutation({
-    mutationFn: () =>
-      ordersService.confirmOrder({
-        reservationIds: storeReservations.map((r) => r.id),
-      }),
-    onSuccess: () => {
-      toast.success("Pedido confirmado");
+  const removeCartItem = useRemoveCartItemMutation(tenantId, slug);
+  const updateQuantity = useUpdateCartQuantityMutation(tenantId, slug);
+  const reserveFromCart = useReserveFromCartMutation(tenantId, slug);
+  const cancelReservation = useCancelReservationMutation(tenantId, slug);
+  const confirmOrder = useConfirmOrderMutation({
+    onConfirmed: () => {
       setConfirmDialogOpen(false);
-      revalidateInBackground(
-        queryClient,
-        queryKeys.orders(tenantId),
-        queryKeys.ordersIncoming(tenantId),
-      );
-      revalidateCheckoutData();
       router.push("/orders");
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao confirmar",
-      );
     },
   });
 
@@ -424,7 +340,10 @@ export default function StoreCartPage({
                 {cartCount > 0 && (
                   <button
                     type="button"
-                    onClick={() => reserveFromCart.mutate()}
+                    onClick={() => {
+                      if (!cart?.store.id) return;
+                      reserveFromCart.mutate(cart.store.id);
+                    }}
                     disabled={reserveFromCart.isPending}
                     className="flex h-10 items-center justify-center gap-2 rounded-lg border border-orange-500/40 px-5 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:opacity-50"
                   >
@@ -484,7 +403,13 @@ export default function StoreCartPage({
             <Button
               type="button"
               disabled={confirmOrder.isPending}
-              onClick={() => confirmOrder.mutate()}
+              onClick={() =>
+                confirmOrder.mutate({
+                  reservationIds: storeReservations.map((r) => r.id),
+                  tenantId,
+                  storeSlug: slug,
+                })
+              }
               className="bg-orange-500 text-black hover:bg-orange-400"
             >
               {confirmOrder.isPending

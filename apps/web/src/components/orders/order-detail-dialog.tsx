@@ -1,8 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Package, Truck, XCircle } from "lucide-react";
-import { toast } from "sonner";
 import { ProductImage } from "@/components/product-image";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +17,8 @@ import {
   orderStatusStyles,
   type OrdersViewMode,
 } from "@/lib/order-status";
-import { queryKeys } from "@/lib/query-keys";
-import { revalidateInBackground } from "@/lib/query-cache";
+import { useUpdateOrderStatusMutation } from "@/query/update-order-status.mutation";
 import type { OrderResponseDto } from "@repo/shared";
-import { ApiError, ordersService } from "@repo/shared/data-access";
 import { cn } from "@/lib/utils";
 
 function formatCurrency(value: number) {
@@ -55,34 +51,12 @@ export function OrderDetailDialog({
   mode: OrdersViewMode;
   onOrderUpdated?: (order: OrderResponseDto) => void;
 }) {
-  const queryClient = useQueryClient();
   const tenantId = useTenantId();
 
-  const updateStatus = useMutation({
-    mutationFn: (status: "DELIVERED" | "CANCELED") => {
-      if (!order) throw new Error("Pedido inválido");
-      return ordersService.updateOrderStatus(order.id, { status });
-    },
+  const updateStatus = useUpdateOrderStatusMutation({
     onSuccess: (updated) => {
-      toast.success(
-        updated.status === "DELIVERED"
-          ? "Pedido marcado como finalizado"
-          : "Pedido cancelado",
-      );
-      if (tenantId) {
-        revalidateInBackground(
-          queryClient,
-          queryKeys.ordersIncoming(tenantId),
-          queryKeys.orders(tenantId),
-        );
-      }
       onOrderUpdated?.(updated);
       onOpenChange(false);
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao atualizar pedido",
-      );
     },
   });
 
@@ -185,7 +159,14 @@ export function OrderDetailDialog({
                 type="button"
                 variant="outline"
                 disabled={updateStatus.isPending}
-                onClick={() => updateStatus.mutate("CANCELED")}
+                onClick={() => {
+                  if (!order || !tenantId) return;
+                  updateStatus.mutate({
+                    orderId: order.id,
+                    status: "CANCELED",
+                    tenantId,
+                  });
+                }}
                 className="border-zinc-800 bg-transparent text-red-400 hover:bg-red-500/10 hover:text-red-300"
               >
                 <XCircle className="size-4" />
@@ -194,7 +175,14 @@ export function OrderDetailDialog({
               <Button
                 type="button"
                 disabled={updateStatus.isPending}
-                onClick={() => updateStatus.mutate("DELIVERED")}
+                onClick={() => {
+                  if (!order || !tenantId) return;
+                  updateStatus.mutate({
+                    orderId: order.id,
+                    status: "DELIVERED",
+                    tenantId,
+                  });
+                }}
                 className="bg-orange-500 text-black hover:bg-orange-400"
               >
                 <Truck className="size-4" />

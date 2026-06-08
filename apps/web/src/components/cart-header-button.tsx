@@ -1,13 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { getMarketplaceStoreSlug } from "@/lib/marketplace-path";
-import { queryKeys } from "@/lib/query-keys";
-import { cartService } from "@repo/shared/data-access";
+import { useGetCartQuery } from "@/query/get-cart.query";
 import { cn } from "@/lib/utils";
 
 export function CartHeaderButton() {
@@ -15,11 +13,7 @@ export function CartHeaderButton() {
   const tenantId = useTenantId();
   const storeSlug = getMarketplaceStoreSlug(pathname);
 
-  const { data: cart } = useQuery({
-    queryKey: queryKeys.cart(tenantId ?? "", storeSlug ?? ""),
-    queryFn: () => cartService.getCart(storeSlug!),
-    enabled: Boolean(tenantId && storeSlug),
-  });
+  const { data: cart } = useGetCartQuery(tenantId, storeSlug ?? undefined);
 
   if (!storeSlug) return null;
 

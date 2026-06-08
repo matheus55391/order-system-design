@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Package, Store } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
@@ -9,12 +8,10 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Button } from "@/components/ui/button";
 import { useTenantId } from "@/hooks/use-tenant-id";
-import { queryKeys } from "@/lib/query-keys";
-import {
-  auditService,
-  ordersService,
-  reservationsService,
-} from "@repo/shared/data-access";
+import { useGetAuditMovementsQuery } from "@/query/get-audit-movements.query";
+import { useGetAuditSummaryQuery } from "@/query/get-audit-summary.query";
+import { useGetIncomingOrdersQuery } from "@/query/get-incoming-orders.query";
+import { useGetReservationsQuery } from "@/query/get-reservations.query";
 import { useAuthStore } from "@/store";
 
 const typeLabels = {
@@ -34,29 +31,14 @@ export default function StorePage() {
   const user = useAuthStore((state) => state.user)!;
   const tenantId = useTenantId()!;
 
-  const { data: summary, isPending: summaryPending } = useQuery({
-    queryKey: queryKeys.auditSummary(tenantId),
-    queryFn: () => auditService.getSummary(),
-    enabled: Boolean(tenantId),
-  });
-
-  const { data: movements, isPending: movementsPending } = useQuery({
-    queryKey: queryKeys.auditMovements(tenantId, 10),
-    queryFn: () => auditService.getMovements(10),
-    enabled: Boolean(tenantId),
-  });
-
-  const { data: incomingOrders, isPending: ordersPending } = useQuery({
-    queryKey: queryKeys.ordersIncoming(tenantId),
-    queryFn: () => ordersService.getIncomingOrders(),
-    enabled: Boolean(tenantId),
-  });
-
-  const { data: reservations, isPending: reservationsPending } = useQuery({
-    queryKey: queryKeys.reservations(tenantId),
-    queryFn: () => reservationsService.getReservations(),
-    enabled: Boolean(tenantId),
-  });
+  const { data: summary, isPending: summaryPending } =
+    useGetAuditSummaryQuery(tenantId);
+  const { data: movements, isPending: movementsPending } =
+    useGetAuditMovementsQuery(tenantId, 10);
+  const { data: incomingOrders, isPending: ordersPending } =
+    useGetIncomingOrdersQuery(tenantId);
+  const { data: reservations, isPending: reservationsPending } =
+    useGetReservationsQuery(tenantId);
 
   const orderStats = useMemo(() => {
     const list = incomingOrders ?? [];
