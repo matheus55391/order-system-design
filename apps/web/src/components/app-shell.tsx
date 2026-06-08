@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { api } from "@/lib/api";
+import { authService } from "@/services";
 import { useAuthStore } from "@/store";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     if (refreshToken) {
-      void api.logout(refreshToken).catch(() => undefined);
+      void authService.logout({ refreshToken }).catch(() => undefined);
     }
     clearSession();
     router.push("/login");

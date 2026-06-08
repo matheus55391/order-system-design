@@ -28,7 +28,7 @@ Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@r
 
 ## Regras de domínio
 
-**Multi-tenancy** — filtrar por `tenantId` do JWT (comprador); preços via `priceTenantId` (loja vendedora).
+**Multi-tenancy** — 1 conta = 1 empresa (tenant). Cadastro cria tenant + admin. Preços via `priceTenantId` no marketplace.
 
 **Fluxo** — Carrinho (intenção) → `POST /reservations/from-cart` → `POST /orders/confirm`. Cart não reserva estoque diretamente.
 

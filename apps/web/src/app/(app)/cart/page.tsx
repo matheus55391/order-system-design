@@ -17,8 +17,12 @@ import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ProductImage } from "@/components/product-image";
-import { ApiError, api } from "@/lib/api";
-import { useAuthStore } from "@/store";
+import { ApiError } from "@/services";
+import {
+  cartService,
+  ordersService,
+  reservationsService,
+} from "@/services";
 
 function CartQuantityControl({
   quantity,
@@ -94,23 +98,22 @@ function formatExpiry(expiresAt: string) {
 }
 
 export default function CartPage() {
-  const token = useAuthStore((state) => state.token)!;
   const queryClient = useQueryClient();
   const router = useRouter();
 
   const { data: cart, isLoading: cartLoading } = useQuery({
     queryKey: ["cart"],
-    queryFn: () => api.getCart(token),
+    queryFn: () => cartService.getCart(),
   });
 
   const { data: reservations, isLoading: resLoading } = useQuery({
     queryKey: ["reservations"],
-    queryFn: () => api.getReservations(token),
+    queryFn: () => reservationsService.getReservations(),
     refetchInterval: 5_000,
   });
 
   const removeItem = useMutation({
-    mutationFn: (itemId: string) => api.removeFromCart(token, itemId),
+    mutationFn: (itemId: string) => cartService.removeItem(itemId),
     onSuccess: () => {
       toast.success("Item removido do carrinho");
       void queryClient.invalidateQueries({ queryKey: ["cart"] });
@@ -124,7 +127,7 @@ export default function CartPage() {
 
   const updateQuantity = useMutation({
     mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
-      api.updateCartItem(token, itemId, quantity),
+      cartService.updateItem(itemId, { quantity }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cart"] });
     },
@@ -136,7 +139,7 @@ export default function CartPage() {
   });
 
   const reserveFromCart = useMutation({
-    mutationFn: () => api.reserveFromCart(token),
+    mutationFn: () => reservationsService.reserveFromCart(),
     onSuccess: () => {
       toast.success("Estoque reservado — confirme antes de expirar");
       void queryClient.invalidateQueries({ queryKey: ["cart"] });
@@ -152,7 +155,7 @@ export default function CartPage() {
   });
 
   const cancelReservation = useMutation({
-    mutationFn: (id: string) => api.cancelReservation(token, id),
+    mutationFn: (id: string) => reservationsService.cancelReservation(id),
     onSuccess: () => {
       toast.success("Reserva cancelada");
       void queryClient.invalidateQueries({ queryKey: ["reservations"] });
@@ -168,10 +171,9 @@ export default function CartPage() {
 
   const confirmOrder = useMutation({
     mutationFn: () =>
-      api.confirmOrder(
-        token,
-        reservations?.map((r) => r.id) ?? [],
-      ),
+      ordersService.confirmOrder({
+        reservationIds: reservations?.map((r) => r.id) ?? [],
+      }),
     onSuccess: () => {
       toast.success("Pedido confirmado");
       void queryClient.invalidateQueries({ queryKey: ["reservations"] });

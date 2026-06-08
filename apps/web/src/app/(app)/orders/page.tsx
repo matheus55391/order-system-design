@@ -7,8 +7,7 @@ import { useMemo } from "react";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { api } from "@/lib/api";
-import { useAuthStore } from "@/store";
+import { ordersService } from "@/services";
 import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
@@ -26,11 +25,9 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function OrdersPage() {
-  const token = useAuthStore((state) => state.token)!;
-
   const { data: orders, isLoading } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => api.getOrders(token),
+    queryFn: () => ordersService.getOrders(),
   });
 
   const stats = useMemo(() => {

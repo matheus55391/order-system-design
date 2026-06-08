@@ -43,14 +43,6 @@ export class AuthService {
   }
 
   async register(input: RegisterInput) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: input.tenantSlug },
-    });
-
-    if (!tenant) {
-      throw new NotFoundException("Tenant não encontrado");
-    }
-
     const existing = await this.prisma.user.findUnique({
       where: { email: input.email },
     });
@@ -59,16 +51,34 @@ export class AuthService {
       throw new ConflictException("E-mail já cadastrado");
     }
 
+    const slug = this.slugify(input.companyName);
+    if (slug.length < 2) {
+      throw new BadRequestException("Nome da empresa inválido");
+    }
+
+    const slugTaken = await this.prisma.tenant.findUnique({ where: { slug } });
+
+    if (slugTaken) {
+      throw new ConflictException("Já existe uma empresa com esse nome");
+    }
+
     const passwordHash = await hash(input.password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: input.email,
-        passwordHash,
-        name: input.name,
-        tenantId: tenant.id,
-      },
-      include: { tenant: true },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: { name: input.companyName, slug },
+      });
+
+      return tx.user.create({
+        data: {
+          email: input.email,
+          passwordHash,
+          name: input.companyName,
+          role: "ADMIN",
+          tenantId: tenant.id,
+        },
+        include: { tenant: true },
+      });
     });
 
     return this.buildAuthResponse(user);
@@ -158,15 +168,6 @@ export class AuthService {
     return { message: "Senha redefinida com sucesso" };
   }
 
-  async listTenants() {
-    const tenants = await this.prisma.tenant.findMany({
-      select: { slug: true, name: true },
-      orderBy: { name: "asc" },
-    });
-
-    return tenants;
-  }
-
   async me(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -244,6 +245,15 @@ export class AuthService {
 
   private hashToken(token: string) {
     return createHash("sha256").update(token).digest("hex");
+  }
+
+  private slugify(value: string): string {
+    return value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
   }
 
   private parseDurationMs(value: string): number {

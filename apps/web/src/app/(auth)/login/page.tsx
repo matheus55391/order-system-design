@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthField, authInputClass } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/services";
+import { authService } from "@/services";
 import { loginSchema } from "@/schema";
 import { useAuthStore } from "@/store";
 
@@ -23,7 +24,7 @@ export default function LoginPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      const response = await api.login(values.email, values.password);
+      const response = await authService.login(values);
       setSession(response.token, response.refreshToken, response.user);
       toast.success("Login realizado");
       router.push("/store");
@@ -52,7 +53,7 @@ export default function LoginPage() {
           <input
             id="email"
             type="email"
-            placeholder="buyer@acme.com"
+            placeholder="loja-alfa@demo.com"
             className={authInputClass()}
             {...form.register("email")}
           />

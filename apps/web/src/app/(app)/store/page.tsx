@@ -8,11 +8,11 @@ import { ViewToggle } from "@/components/catalog/view-toggle";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SearchInput } from "@/components/dashboard/search-input";
 import { useCatalogView } from "@/hooks/use-catalog-view";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/services";
+import { cartService, catalogService } from "@/services";
 import { useAuthStore } from "@/store";
 
 export default function StorePage() {
-  const token = useAuthStore((state) => state.token)!;
   const user = useAuthStore((state) => state.user)!;
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -21,7 +21,7 @@ export default function StorePage() {
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products"],
-    queryFn: () => api.getProducts(token),
+    queryFn: () => catalogService.getProducts(),
   });
 
   const filtered = useMemo(() => {
@@ -42,7 +42,7 @@ export default function StorePage() {
     }: {
       variantId: string;
       quantity: number;
-    }) => api.addToCart(token, variantId, quantity),
+    }) => cartService.addItem({ variantId, quantity }),
     onSuccess: () => {
       toast.success("Adicionado ao carrinho");
       void queryClient.invalidateQueries({ queryKey: ["cart"] });

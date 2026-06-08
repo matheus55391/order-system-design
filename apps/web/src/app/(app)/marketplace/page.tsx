@@ -5,15 +5,12 @@ import { Store } from "lucide-react";
 import Link from "next/link";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { api } from "@/lib/api";
-import { useAuthStore } from "@/store";
+import { catalogService } from "@/services";
 
 export default function MarketplacePage() {
-  const token = useAuthStore((state) => state.token)!;
-
   const { data: stores, isLoading } = useQuery({
     queryKey: ["stores"],
-    queryFn: () => api.listStores(token),
+    queryFn: () => catalogService.listStores(),
   });
 
   if (isLoading) {

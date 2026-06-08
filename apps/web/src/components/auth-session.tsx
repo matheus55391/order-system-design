@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { isTokenExpired } from "@/lib/auth-token";
-import { api } from "@/lib/api";
+import { authService } from "@/services";
 import { useAuthStore } from "@/store";
 
 export function AuthSession({ children }: { children: React.ReactNode }) {
@@ -33,7 +33,7 @@ export function AuthSession({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const data = await api.refresh(refreshToken);
+        const data = await authService.refresh({ refreshToken });
         setSession(data.token, data.refreshToken, data.user);
       } catch {
         clearSession();

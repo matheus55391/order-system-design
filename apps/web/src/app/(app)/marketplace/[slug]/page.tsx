@@ -10,8 +10,8 @@ import { ViewToggle } from "@/components/catalog/view-toggle";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SearchInput } from "@/components/dashboard/search-input";
 import { useCatalogView } from "@/hooks/use-catalog-view";
-import { ApiError, api } from "@/lib/api";
-import { useAuthStore } from "@/store";
+import { ApiError } from "@/services";
+import { cartService, catalogService } from "@/services";
 
 export default function StoreCatalogPage({
   params,
@@ -19,7 +19,6 @@ export default function StoreCatalogPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const token = useAuthStore((state) => state.token)!;
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -27,7 +26,7 @@ export default function StoreCatalogPage({
 
   const { data, isLoading } = useQuery({
     queryKey: ["store-products", slug],
-    queryFn: () => api.getStoreProducts(token, slug),
+    queryFn: () => catalogService.getStoreProducts(slug),
   });
 
   const filtered = useMemo(() => {
@@ -50,7 +49,8 @@ export default function StoreCatalogPage({
       variantId: string;
       quantity: number;
       priceTenantId: string;
-    }) => api.addToCart(token, variantId, quantity, priceTenantId),
+    }) =>
+      cartService.addItem({ variantId, quantity, priceTenantId }),
     onSuccess: () => {
       toast.success("Adicionado ao carrinho");
       void queryClient.invalidateQueries({ queryKey: ["cart"] });

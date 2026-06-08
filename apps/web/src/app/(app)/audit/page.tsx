@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { api } from "@/lib/api";
-import { useAuthStore } from "@/store";
+import { auditService } from "@/services";
 
 const typeLabels = {
   RESERVE: { label: "Reserva", color: "text-orange-400 bg-orange-500/10" },
@@ -14,16 +13,14 @@ const typeLabels = {
 } as const;
 
 export default function AuditPage() {
-  const token = useAuthStore((state) => state.token)!;
-
   const { data: summary } = useQuery({
     queryKey: ["audit-summary"],
-    queryFn: () => api.getAuditSummary(token),
+    queryFn: () => auditService.getSummary(),
   });
 
   const { data: movements, isLoading } = useQuery({
     queryKey: ["audit"],
-    queryFn: () => api.getAuditMovements(token),
+    queryFn: () => auditService.getMovements(),
   });
 
   if (isLoading) {

@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -9,7 +8,8 @@ import { toast } from "sonner";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthField, authInputClass } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/services";
+import { authService } from "@/services";
 import { registerSchema } from "@/schema";
 import { useAuthStore } from "@/store";
 
@@ -17,26 +17,20 @@ export default function RegisterPage() {
   const router = useRouter();
   const setSession = useAuthStore((state) => state.setSession);
 
-  const { data: tenants } = useQuery({
-    queryKey: ["tenants"],
-    queryFn: () => api.listTenants(),
-  });
-
   const form = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: "",
+      companyName: "",
       email: "",
       password: "",
-      tenantSlug: "",
     },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      const response = await api.register(values);
+      const response = await authService.register(values);
       setSession(response.token, response.refreshToken, response.user);
-      toast.success("Conta criada com sucesso");
+      toast.success("Empresa criada com sucesso");
       router.push("/store");
     } catch (error) {
       toast.error(
@@ -47,8 +41,8 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="Criar conta"
-      subtitle="Junte-se à plataforma B2B do seu tenant"
+      title="Criar sua loja"
+      subtitle="Cadastre sua empresa e comece a vender"
       footer={
         <>
           Já tem conta?{" "}
@@ -59,13 +53,17 @@ export default function RegisterPage() {
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
-        <AuthField id="name" label="Nome" error={form.formState.errors.name?.message}>
+        <AuthField
+          id="companyName"
+          label="Nome da empresa"
+          error={form.formState.errors.companyName?.message}
+        >
           <input
-            id="name"
+            id="companyName"
             type="text"
-            placeholder="Seu nome"
+            placeholder="Minha Loja"
             className={authInputClass()}
-            {...form.register("name")}
+            {...form.register("companyName")}
           />
         </AuthField>
 
@@ -73,7 +71,7 @@ export default function RegisterPage() {
           <input
             id="email"
             type="email"
-            placeholder="voce@empresa.com"
+            placeholder="contato@minhaloja.com"
             className={authInputClass()}
             {...form.register("email")}
           />
@@ -93,26 +91,7 @@ export default function RegisterPage() {
           />
         </AuthField>
 
-        <AuthField
-          id="tenantSlug"
-          label="Empresa (tenant)"
-          error={form.formState.errors.tenantSlug?.message}
-        >
-          <select
-            id="tenantSlug"
-            className={authInputClass()}
-            {...form.register("tenantSlug")}
-          >
-            <option value="">Selecione sua empresa</option>
-            {tenants?.map((t) => (
-              <option key={t.slug} value={t.slug}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </AuthField>
-
-        <AuthButton loading={form.formState.isSubmitting}>Criar conta</AuthButton>
+        <AuthButton loading={form.formState.isSubmitting}>Criar loja</AuthButton>
       </form>
     </AuthShell>
   );

@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthField, authInputClass } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/services";
+import { authService } from "@/services";
 import { forgotPasswordSchema } from "@/schema";
 
 export default function ForgotPasswordPage() {
@@ -18,7 +19,7 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      const result = await api.forgotPassword(values.email);
+      const result = await authService.forgotPassword(values);
       toast.success(result.message);
       form.reset();
     } catch (error) {

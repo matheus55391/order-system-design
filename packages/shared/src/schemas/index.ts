@@ -8,8 +8,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email("E-mail inválido"),
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
-  name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
-  tenantSlug: z.string().min(2, "Slug do tenant inválido"),
+  companyName: z.string().min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
 });
 
 export const addToCartSchema = z.object({

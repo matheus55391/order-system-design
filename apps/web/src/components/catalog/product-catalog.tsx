@@ -3,7 +3,7 @@
 import { ShoppingCart } from "lucide-react";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { ProductImage } from "@/components/product-image";
-import type { Product } from "@/lib/api";
+import type { ProductDto } from "@/services";
 import { cn } from "@/lib/utils";
 import type { CatalogView } from "./view-toggle";
 
@@ -15,7 +15,7 @@ function VariantRow({
   disabled,
   compact,
 }: {
-  variant: Product["variants"][number];
+  variant: ProductDto["variants"][number];
   quantity: number;
   onQuantityChange: (qty: number) => void;
   onAddToCart: () => void;
@@ -94,7 +94,7 @@ function ProductCardGrid({
   onAddToCart,
   addToCartPending,
 }: {
-  product: Product;
+  product: ProductDto;
   quantities: Record<string, number>;
   onQuantityChange: (variantId: string, qty: number) => void;
   onAddToCart: (variantId: string, quantity: number) => void;
@@ -138,7 +138,7 @@ function ProductCardList({
   onAddToCart,
   addToCartPending,
 }: {
-  product: Product;
+  product: ProductDto;
   quantities: Record<string, number>;
   onQuantityChange: (variantId: string, qty: number) => void;
   onAddToCart: (variantId: string, quantity: number) => void;
@@ -187,7 +187,7 @@ export function ProductCatalog({
   onAddToCart,
   addToCartPending,
 }: {
-  products: Product[];
+  products: ProductDto[];
   view: CatalogView;
   quantities: Record<string, number>;
   onQuantityChange: (variantId: string, qty: number) => void;

@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthField, authInputClass } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/services";
+import { authService } from "@/services";
 import { resetPasswordSchema } from "@/schema";
 
 function ResetPasswordForm() {
@@ -24,7 +25,7 @@ function ResetPasswordForm() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      await api.resetPassword(values.token, values.password);
+      await authService.resetPassword(values);
       toast.success("Senha redefinida com sucesso");
       router.push("/login");
     } catch (error) {

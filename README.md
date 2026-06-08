@@ -23,7 +23,7 @@ packages/
 
 ### Multi-tenancy
 
-Cada usuário pertence a um `tenant`. O JWT carrega `user_id`, `tenant_id` e `role`. Queries filtram por `tenant_id` do comprador; preços vêm do `priceTenantId` (loja vendedora).
+Cada conta representa uma **empresa** (1 usuário = 1 tenant). No cadastro, informar o nome da empresa cria o tenant automaticamente. O JWT carrega `user_id`, `tenant_id` e `role`. Preços no marketplace vêm do `priceTenantId` da loja vendedora.
 
 ### Fluxo de compra
 
@@ -83,19 +83,21 @@ pnpm dev
 
 - Web: http://localhost:3000
 - API: http://localhost:3001
+- Swagger: http://localhost:3001/docs
 - RabbitMQ Management: http://localhost:15672 (order_system / order_system)
 - MailHog (e-mails dev): http://localhost:8025
 - MinIO API: http://localhost:9000 · Console: http://localhost:9001
 
 ## Contas de demonstração
 
-| E-mail | Tenant | Senha |
-|--------|--------|-------|
-| buyer@acme.com | Acme Corp | password123 |
-| admin@acme.com | Acme Corp | password123 |
-| buyer@globex.com | Globex Industries | password123 |
+| E-mail | Empresa | Senha |
+|--------|---------|-------|
+| loja-alfa@demo.com | Loja Alfa | password123 |
+| loja-beta@demo.com | Loja Beta | password123 |
 
-Teste marketplace: login como `buyer@acme.com` e compre na loja Globex (preços diferentes).
+Teste marketplace: login como Loja Alfa e compre na Loja Beta (preços diferentes).
+
+Cadastro (`/register`): cria uma nova empresa + usuário admin automaticamente.
 
 ## Scripts úteis
 
