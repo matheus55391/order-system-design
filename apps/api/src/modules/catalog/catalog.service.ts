@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Prisma } from "@repo/database";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { InventoryService } from "../inventory/inventory.service";
@@ -39,9 +43,14 @@ export class CatalogService {
     return this.mapProducts(products, priceTenantId);
   }
 
-  async listProductsByStoreSlug(slug: string) {
+  async listProductsByStoreSlug(slug: string, buyerTenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) throw new NotFoundException("Loja não encontrada");
+    if (tenant.id === buyerTenantId) {
+      throw new BadRequestException(
+        "Não é possível comprar da própria loja pelo marketplace",
+      );
+    }
     const products = await this.listProducts(tenant.id);
     return { store: { id: tenant.id, name: tenant.name, slug: tenant.slug }, products };
   }

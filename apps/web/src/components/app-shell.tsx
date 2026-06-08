@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { CartHeaderButton } from "@/components/cart-header-button";
 import { authService } from "@/services";
 import { clearSessionQueries } from "@/lib/query-cache";
 import { useAuthStore } from "@/store";
@@ -13,7 +14,6 @@ const navItems = [
   { href: "/store", label: "Minha loja" },
   { href: "/inventory", label: "Estoque" },
   { href: "/marketplace", label: "Marketplace" },
-  { href: "/cart", label: "Carrinho" },
   { href: "/orders", label: "Pedidos" },
 ];
 
@@ -56,10 +56,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="hidden text-xs text-zinc-600 sm:inline">
               {user?.role}
             </span>
+            {user && <CartHeaderButton />}
+            <Link
+              href="/settings"
+              title="Configurações"
+              className={cn(
+                "flex size-8 items-center justify-center rounded-full border transition-colors",
+                pathname.startsWith("/settings")
+                  ? "border-orange-500/50 bg-orange-500/10 text-orange-400"
+                  : "border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300",
+              )}
+            >
+              <Settings className="size-3.5" />
+            </Link>
             <button
               type="button"
               onClick={handleLogout}

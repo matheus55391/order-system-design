@@ -8,11 +8,11 @@ export class AddToCartRequestDto {
   @ApiProperty({ minimum: 1, maximum: 100, example: 1 })
   quantity!: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     format: "uuid",
-    description: "Loja vendedora (marketplace). Omitir = tenant do comprador",
+    description: "Loja vendedora no marketplace",
   })
-  priceTenantId?: string;
+  priceTenantId!: string;
 }
 
 export class UpdateCartItemRequestDto {
@@ -64,8 +64,11 @@ export class CartItemDto {
 }
 
 export class CartResponseDto {
-  @ApiProperty()
-  id!: string;
+  @ApiProperty({ nullable: true })
+  id!: string | null;
+
+  @ApiProperty({ type: TenantRefDto })
+  store!: TenantRefDto;
 
   @ApiProperty({ type: [CartItemDto] })
   items!: CartItemDto[];

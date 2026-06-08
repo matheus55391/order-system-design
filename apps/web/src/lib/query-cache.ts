@@ -57,10 +57,23 @@ export function revalidateInventory(
 export function revalidateCheckout(
   queryClient: QueryClient,
   tenantId: string,
+  storeSlug?: string,
 ) {
+  if (storeSlug) {
+    revalidateInBackground(
+      queryClient,
+      queryKeys.cart(tenantId, storeSlug),
+      queryKeys.reservations(tenantId),
+      queryKeys.auditSummary(tenantId),
+      queryKeys.auditMovements(tenantId, 10),
+      queryKeys.inventory.all(tenantId),
+    );
+    return;
+  }
+
+  void queryClient.invalidateQueries({ queryKey: ["cart", tenantId] });
   revalidateInBackground(
     queryClient,
-    queryKeys.cart(tenantId),
     queryKeys.reservations(tenantId),
     queryKeys.auditSummary(tenantId),
     queryKeys.auditMovements(tenantId, 10),

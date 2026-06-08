@@ -34,8 +34,11 @@ export class CatalogController {
   @ApiOperation({ summary: "Catálogo de uma loja por slug" })
   @ApiParam({ name: "slug", example: "globex" })
   @ApiOkResponse({ type: StoreCatalogResponseDto })
-  listStoreProducts(@Param("slug") slug: string) {
-    return this.catalogService.listProductsByStoreSlug(slug);
+  listStoreProducts(
+    @CurrentUser() user: TenantContext,
+    @Param("slug") slug: string,
+  ) {
+    return this.catalogService.listProductsByStoreSlug(slug, user.tenantId);
   }
 
   @Get("products")

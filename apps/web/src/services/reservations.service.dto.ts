@@ -1,6 +1,7 @@
 import type { TenantRefDto } from "./shared.dto";
 
 export interface ReserveFromCartRequestDto {
+  priceTenantId: string;
   cartItemIds?: string[];
 }
 

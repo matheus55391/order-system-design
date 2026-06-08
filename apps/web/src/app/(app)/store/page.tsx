@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Package, ShoppingBag, Store } from "lucide-react";
+import { ArrowRight, Package, Store } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { DashCard } from "@/components/dashboard/dash-card";
@@ -216,16 +216,6 @@ export default function StorePage() {
                 <span className="flex items-center gap-2">
                   <Store className="size-4 text-zinc-400" />
                   Ir ao marketplace
-                </span>
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="/cart"
-                className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white"
-              >
-                <span className="flex items-center gap-2">
-                  <ShoppingBag className="size-4 text-zinc-400" />
-                  Ver carrinho
                 </span>
                 <ArrowRight className="size-4" />
               </Link>

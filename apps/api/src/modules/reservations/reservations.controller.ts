@@ -58,6 +58,7 @@ export class ReservationsController {
     return this.reservationsService.reserveFromCart(
       user.tenantId,
       user.userId,
+      input.priceTenantId,
       input.cartItemIds,
     );
   }

@@ -26,9 +26,10 @@ export class ReservationsService {
   async reserveFromCart(
     tenantId: string,
     userId: string,
+    priceTenantId: string,
     cartItemIds?: string[],
   ) {
-    const cart = await this.cartService.getCart(tenantId, userId);
+    const cart = await this.cartService.getCart(tenantId, userId, priceTenantId);
     const items = cartItemIds?.length
       ? cart.items.filter((i) => cartItemIds.includes(i.id))
       : cart.items;
@@ -53,6 +54,7 @@ export class ReservationsService {
     await this.cartService.removeItems(
       tenantId,
       userId,
+      priceTenantId,
       items.map((i) => i.id),
     );
 

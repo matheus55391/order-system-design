@@ -32,6 +32,8 @@ Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@r
 
 **Fluxo** — Carrinho (intenção) → `POST /reservations/from-cart` → `POST /orders/confirm`. Cart não reserva estoque diretamente.
 
+**Carrinho** — ícone no header só em `/marketplace/[slug]`. Um carrinho por loja vendedora (`/marketplace/[slug]/cart`); sem checkout multi-loja; ver README.
+
 **Estoque** — alterações só via `InventoryService` + Redis lock; `StockMovement` registra RESERVE/RELEASE/SALE.
 
 **Auth** — JWT HMAC em `jwt.service.ts`; sem Passport/Auth0.

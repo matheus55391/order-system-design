@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { SearchInput } from "@/components/dashboard/search-input";
 import { useCatalogView } from "@/hooks/use-catalog-view";
 import { useTenantId } from "@/hooks/use-tenant-id";
+import { useAuthStore } from "@/store";
 import { queryKeys } from "@/lib/query-keys";
 import { revalidateInBackground } from "@/lib/query-cache";
 import { ApiError } from "@/services";
@@ -24,6 +25,8 @@ export default function StoreCatalogPage({
   const { slug } = use(params);
   const queryClient = useQueryClient();
   const tenantId = useTenantId()!;
+  const ownSlug = useAuthStore((s) => s.user?.tenant.slug);
+  const isOwnStore = ownSlug === slug;
   const [search, setSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { view, setView, ready } = useCatalogView();
@@ -31,6 +34,7 @@ export default function StoreCatalogPage({
   const { data, isPending } = useQuery({
     queryKey: queryKeys.storeProducts(slug),
     queryFn: () => catalogService.getStoreProducts(slug),
+    enabled: !isOwnStore,
   });
 
   const filtered = useMemo(() => {
@@ -58,7 +62,7 @@ export default function StoreCatalogPage({
     onSuccess: () => {
       toast.success("Adicionado ao carrinho");
       if (tenantId) {
-        revalidateInBackground(queryClient, queryKeys.cart(tenantId));
+        revalidateInBackground(queryClient, queryKeys.cart(tenantId, slug));
       }
     },
     onError: (error) => {
@@ -67,6 +71,38 @@ export default function StoreCatalogPage({
       );
     },
   });
+
+  if (isOwnStore) {
+    return (
+      <div className="flex flex-col gap-8">
+        <Link
+          href="/marketplace"
+          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300"
+        >
+          <ArrowLeft className="size-4" />
+          Voltar ao marketplace
+        </Link>
+        <PageHeader
+          title="Esta é a sua loja"
+          description="No marketplace você só compra de outras empresas. Gerencie catálogo e estoque em Minha loja / Estoque."
+        />
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/store"
+            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-black hover:bg-orange-400"
+          >
+            Ir para Minha loja
+          </Link>
+          <Link
+            href="/inventory"
+            className="rounded-lg border border-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-700"
+          >
+            Gerenciar estoque
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if ((isPending && !data) || !ready) {
     return <p className="text-muted-foreground">Carregando catálogo...</p>;
@@ -84,7 +120,7 @@ export default function StoreCatalogPage({
 
       <PageHeader
         title={data?.store.name ?? slug}
-        description="Preços desta loja — estoque compartilhado globalmente"
+        description="Compre desta loja — checkout separado do carrinho da sua empresa"
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

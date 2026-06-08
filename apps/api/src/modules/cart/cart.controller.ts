@@ -38,15 +38,23 @@ import { CartService } from "./cart.service";
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  @Get()
-  @ApiOperation({ summary: "Obter carrinho do usuário" })
+  @Get("stores/:slug")
+  @ApiOperation({ summary: "Obter carrinho da loja vendedora (por slug)" })
+  @ApiParam({ name: "slug", example: "loja-beta" })
   @ApiOkResponse({ type: CartResponseDto })
-  getCart(@CurrentUser() user: TenantContext) {
-    return this.cartService.getCart(user.tenantId, user.userId);
+  getCartByStore(
+    @CurrentUser() user: TenantContext,
+    @Param("slug") slug: string,
+  ) {
+    return this.cartService.getCartByStoreSlug(
+      user.tenantId,
+      user.userId,
+      slug,
+    );
   }
 
   @Post("items")
-  @ApiOperation({ summary: "Adicionar item ao carrinho" })
+  @ApiOperation({ summary: "Adicionar item ao carrinho da loja" })
   @ApiOkResponse({ type: CartItemMutationResponseDto })
   addItem(@CurrentUser() user: TenantContext, @Body() body: AddToCartRequestDto) {
     const input = addToCartSchema.parse(body);

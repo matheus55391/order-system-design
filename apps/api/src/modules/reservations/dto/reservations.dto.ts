@@ -2,10 +2,13 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { TenantRefDto } from "../../../common/dto/shared.dto";
 
 export class ReserveFromCartRequestDto {
+  @ApiProperty({ format: "uuid", description: "Loja vendedora do carrinho" })
+  priceTenantId!: string;
+
   @ApiPropertyOptional({
     type: [String],
     format: "uuid",
-    description: "Itens específicos. Omitir = todos do carrinho",
+    description: "Itens específicos. Omitir = todos do carrinho da loja",
   })
   cartItemIds?: string[];
 }

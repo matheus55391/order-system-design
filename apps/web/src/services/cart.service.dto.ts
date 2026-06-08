@@ -3,7 +3,7 @@ import type { TenantRefDto } from "./shared.dto";
 export interface AddToCartRequestDto {
   variantId: string;
   quantity: number;
-  priceTenantId?: string;
+  priceTenantId: string;
 }
 
 export interface UpdateCartItemRequestDto {
@@ -30,7 +30,8 @@ export interface CartItemDto {
 }
 
 export interface CartResponseDto {
-  id: string;
+  id: string | null;
+  store: TenantRefDto;
   items: CartItemDto[];
 }
 

@@ -31,7 +31,7 @@ Cada conta representa uma **empresa** (1 usuário = 1 tenant). No cadastro, info
 Loja / Marketplace → Carrinho (intenção) → Reserva (TTL + lock) → Pedido (imutável)
 ```
 
-1. **Carrinho** — itens com `variantId`, `quantity` e `priceTenantId` (sua loja ou outra)
+1. **Carrinho** — por loja vendedora (`userId` + `priceTenantId`); itens com `variantId`, `quantity`
 2. **Reservar estoque** — `POST /reservations/from-cart` bloqueia estoque com TTL
 3. **Redis lock** — serializa updates de inventário por variant
 4. **RabbitMQ** — agenda expiração da reserva
@@ -42,6 +42,20 @@ Loja / Marketplace → Carrinho (intenção) → Reserva (TTL + lock) → Pedido
 
 - **Minha loja** (`/store`) — catálogo com preços do seu tenant
 - **Marketplace** (`/marketplace`) — comprar de outras lojas com preços do tenant vendedor
+
+### Carrinho (limitação intencional)
+
+O carrinho fica no **ícone à direita do header**, visível apenas ao navegar em uma loja do marketplace (`/marketplace/[slug]`). Checkout em `/marketplace/[slug]/cart`.
+
+**Um carrinho por loja vendedora** — simplificação deliberada do projeto:
+
+- Cada par comprador + loja vendedora tem seu próprio carrinho (`userId` + `priceTenantId`)
+- **Não é possível** misturar itens da Loja B e da Loja C no mesmo checkout
+- Para comprar de outra loja: voltar ao marketplace, escolher o fornecedor — o carrinho daquela loja estará lá (persistido separadamente)
+- Reserva e confirmação de pedido são sempre **por loja**
+- Compras da própria loja não usam carrinho — fluxo exclusivo do marketplace
+
+Em produção, daria para unificar carrinhos multi-fornecedor ou sincronizar sessões; aqui o modelo por loja reduz complexidade de UI, reservas e fulfillment.
 
 ### Imagens (MinIO)
 

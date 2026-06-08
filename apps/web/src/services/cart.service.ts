@@ -8,8 +8,8 @@ import type {
 import type { SuccessResponseDto } from "./shared.dto";
 
 class CartService extends ApiService {
-  getCart() {
-    return this.get<CartResponseDto>("/cart");
+  getCart(storeSlug: string) {
+    return this.get<CartResponseDto>(`/cart/stores/${storeSlug}`);
   }
 
   addItem(data: AddToCartRequestDto) {

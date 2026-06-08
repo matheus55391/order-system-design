@@ -9,10 +9,10 @@ class ReservationsService extends ApiService {
     return this.get<ReservationDto[]>("/reservations");
   }
 
-  reserveFromCart(data?: ReserveFromCartRequestDto) {
+  reserveFromCart(data: ReserveFromCartRequestDto) {
     return this.post<ReservationDto[], ReserveFromCartRequestDto>(
       "/reservations/from-cart",
-      data ?? {},
+      data,
     );
   }
 

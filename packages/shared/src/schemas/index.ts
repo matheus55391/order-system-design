@@ -14,10 +14,11 @@ export const registerSchema = z.object({
 export const addToCartSchema = z.object({
   variantId: z.string().uuid(),
   quantity: z.number().int().min(1).max(100),
-  priceTenantId: z.string().uuid().optional(),
+  priceTenantId: z.string().uuid(),
 });
 
 export const reserveFromCartSchema = z.object({
+  priceTenantId: z.string().uuid(),
   cartItemIds: z.array(z.string().uuid()).optional(),
 });
 

@@ -1,5 +1,6 @@
 export const queryKeys = {
-  cart: (tenantId: string) => ["cart", tenantId] as const,
+  cart: (tenantId: string, storeSlug: string) =>
+    ["cart", tenantId, storeSlug] as const,
   reservations: (tenantId: string) => ["reservations", tenantId] as const,
   orders: (tenantId: string) => ["orders", tenantId] as const,
   ordersIncoming: (tenantId: string) =>

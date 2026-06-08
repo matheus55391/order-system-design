@@ -45,6 +45,7 @@ model Tenant {
   orders             Order[]
   reservations       Reservation[]
   stockMoves         StockMovement[]
+  sellerCarts        Cart[]          @relation("CartSellerTenant")
   cartItemPrices     CartItem[]      @relation("CartItemPriceTenant")
   reservationPrices  Reservation[]   @relation("ReservationPriceTenant")
   orderItemPrices    OrderItem[]     @relation("OrderItemPriceTenant")
@@ -64,7 +65,7 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id])
-  cart                Cart?
+  carts               Cart[]
   reservations        Reservation[]
   orders              Order[]
   passwordResetTokens PasswordResetToken[]
@@ -166,15 +167,18 @@ model TenantProductPrice {
 }
 
 model Cart {
-  id        String   @id @default(uuid())
-  userId    String   @unique @map("user_id")
-  tenantId  String   @map("tenant_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  tenantId      String   @map("tenant_id")
+  priceTenantId String   @map("price_tenant_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items CartItem[]
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  priceTenant Tenant     @relation("CartSellerTenant", fields: [priceTenantId], references: [id])
+  items       CartItem[]
 
+  @@unique([userId, priceTenantId])
   @@index([tenantId])
   @@map("carts")
 }
