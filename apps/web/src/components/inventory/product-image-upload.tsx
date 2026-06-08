@@ -11,11 +11,13 @@ const MAX_SIZE_MB = 5;
 export function ProductImageUpload({
   value,
   onChange,
+  currentImageUrl,
   error,
   className,
 }: {
   value: File | null;
   onChange: (file: File | null) => void;
+  currentImageUrl?: string | null;
   error?: string;
   className?: string;
 }) {
@@ -34,6 +36,8 @@ export function ProductImageUpload({
     setPreviewUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [value]);
+
+  const displayUrl = previewUrl ?? (value ? null : currentImageUrl) ?? null;
 
   const handleFile = (file: File | undefined) => {
     if (!file) return;
@@ -70,24 +74,26 @@ export function ProductImageUpload({
         onChange={(event) => handleFile(event.target.files?.[0])}
       />
 
-      {previewUrl ? (
+      {displayUrl ? (
         <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-muted/30">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={previewUrl}
+            src={displayUrl}
             alt="Pré-visualização"
             className="size-full object-cover"
           />
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="absolute top-3 right-3 size-9 bg-background/90 text-foreground hover:bg-accent"
-            onClick={clear}
-          >
-            <X className="size-4" />
-            <span className="sr-only">Remover imagem</span>
-          </Button>
+          {value ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute top-3 right-3 size-9 bg-background/90 text-foreground hover:bg-accent"
+              onClick={clear}
+            >
+              <X className="size-4" />
+              <span className="sr-only">Remover imagem</span>
+            </Button>
+          ) : null}
         </div>
       ) : (
         <button
@@ -124,7 +130,7 @@ export function ProductImageUpload({
         </button>
       )}
 
-      {previewUrl ? (
+      {displayUrl ? (
         <Button
           type="button"
           variant="outline"
@@ -132,7 +138,7 @@ export function ProductImageUpload({
           onClick={() => inputRef.current?.click()}
         >
           <Upload className="size-4" />
-          Trocar imagem
+          {value ? "Trocar imagem" : "Alterar imagem"}
         </Button>
       ) : null}
 

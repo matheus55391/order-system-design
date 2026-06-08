@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { AuthField, AuthInput, authInputClass } from "@/components/auth/auth-field";
 import { ProductImageUpload } from "@/components/inventory/product-image-upload";
+import { SkuInput } from "@/components/inventory/sku-input";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { FullscreenDialogContent } from "@/components/inventory/fullscreen-dialog-content";
@@ -155,16 +156,14 @@ export function NewProductDialog({
                         name="variant.sku"
                         control={form.control}
                         render={({ field }) => (
-                          <AuthInput
+                          <SkuInput
                             id="dialog-sku"
-                            placeholder="Ex.: CAM-BAS-PRETA-M"
                             value={field.value}
-                            onChange={(event) =>
-                              field.onChange(
-                                event.target.value.toUpperCase().trimStart(),
-                              )
-                            }
+                            onChange={field.onChange}
                             onBlur={field.onBlur}
+                            productName={form.watch("name")}
+                            size={form.watch("variant.size")}
+                            color={form.watch("variant.color")}
                           />
                         )}
                       />

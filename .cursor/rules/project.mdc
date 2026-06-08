@@ -11,7 +11,7 @@ Monorepo B2B multi-tenant — marketplace, reserva de estoque com TTL, JWT próp
 
 ```bash
 # Dev local (infra no Docker; API/Web com pnpm)
-pnpm docker:dev:up && pnpm minio:setup && pnpm db:setup && pnpm dev
+pnpm dev:setup && pnpm dev
 
 # Prod simulado local (stack completa buildada): pnpm docker:dev:down && pnpm docker:prod:up
 ```
