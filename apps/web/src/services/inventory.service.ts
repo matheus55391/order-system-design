@@ -16,6 +16,15 @@ class InventoryService extends ApiService {
     return this.get<InventoryProductDto>(`/inventory/products/${id}`);
   }
 
+  uploadProductImage(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return this.post<{ url: string }, FormData>(
+      "/inventory/images",
+      formData,
+    );
+  }
+
   createProduct(data: CreateProductRequestDto) {
     return this.post<InventoryProductDto, CreateProductRequestDto>(
       "/inventory/products",

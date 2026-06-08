@@ -81,6 +81,10 @@ http.interceptors.request.use(async (config) => {
   const apiConfig = config as InternalAxiosRequestConfig & ApiRequestConfig;
   if (apiConfig.skipAuth) return config;
 
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
+
   const token = await getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

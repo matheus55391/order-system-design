@@ -12,6 +12,7 @@ import { PrismaModule } from "./infrastructure/prisma/prisma.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
 import { RabbitMqModule } from "./infrastructure/rabbitmq/rabbitmq.module";
 import { EmailModule } from "./infrastructure/email/email.module";
+import { MinioModule } from "./infrastructure/minio/minio.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { EmailModule } from "./infrastructure/email/email.module";
     RedisModule,
     RabbitMqModule,
     EmailModule,
+    MinioModule,
     AuthModule,
     CatalogModule,
     CartModule,

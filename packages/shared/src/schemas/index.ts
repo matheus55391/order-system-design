@@ -57,6 +57,10 @@ export const createProductSchema = z.object({
   variant: createProductVariantSchema,
 });
 
+export const createProductFormSchema = createProductSchema.omit({
+  imageUrl: true,
+});
+
 export const updateProductSchema = z.object({
   name: z.string().min(2).optional(),
   description: z.string().max(500).optional().nullable(),
@@ -83,6 +87,7 @@ export type UpdateCartItemInput = z.infer<typeof updateCartItemSchema>;
 export type ConfirmOrderInput = z.infer<typeof confirmOrderSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type CreateProductFormInput = z.infer<typeof createProductFormSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type UpdateVariantInput = z.infer<typeof updateVariantSchema>;
 export type AddVariantInput = z.infer<typeof addVariantSchema>;

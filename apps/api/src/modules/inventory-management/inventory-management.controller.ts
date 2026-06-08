@@ -1,14 +1,20 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -30,6 +36,7 @@ import {
   UpdateProductRequestDto,
   UpdateVariantRequestDto,
 } from "./dto/inventory-management.dto";
+import { MinioService } from "../../infrastructure/minio/minio.service";
 import { InventoryManagementService } from "./inventory-management.service";
 
 @ApiTags("inventory")
@@ -39,6 +46,7 @@ import { InventoryManagementService } from "./inventory-management.service";
 export class InventoryManagementController {
   constructor(
     private readonly inventoryManagementService: InventoryManagementService,
+    private readonly minioService: MinioService,
   ) {}
 
   @Get("products")
@@ -57,6 +65,40 @@ export class InventoryManagementController {
     @Param("id") id: string,
   ) {
     return this.inventoryManagementService.getProduct(user.tenantId, id);
+  }
+
+  @Post("images")
+  @ApiOperation({ summary: "Upload de imagem do produto" })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+      },
+      required: ["file"],
+    },
+  })
+  @ApiOkResponse({
+    schema: {
+      type: "object",
+      properties: { url: { type: "string" } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  async uploadProductImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException("Arquivo de imagem obrigatório.");
+    }
+
+    const url = await this.minioService.uploadProductImage(
+      file.buffer,
+      file.mimetype,
+    );
+
+    return { url };
   }
 
   @Post("products")

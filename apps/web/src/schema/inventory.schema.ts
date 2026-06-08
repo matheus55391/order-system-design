@@ -1,5 +1,6 @@
 export {
   addVariantSchema,
+  createProductFormSchema,
   createProductSchema,
   updateProductSchema,
   updateVariantSchema,

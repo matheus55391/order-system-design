@@ -3,10 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { AuthField } from "@/components/auth/auth-field";
+import { AuthField, AuthInput, authInputClass } from "@/components/auth/auth-field";
+import { ProductImageUpload } from "@/components/inventory/product-image-upload";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   Dialog,
   DialogContent,
@@ -15,11 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { IntegerInput } from "@/components/ui/integer-input";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/services";
 import { inventoryService } from "@/services";
-import { createProductSchema } from "@/schema";
+import { createProductFormSchema } from "@/schema";
 import { cn } from "@/lib/utils";
 
 const defaultImage =
@@ -29,7 +32,6 @@ const defaultImage =
 const defaultValues = {
   name: "",
   description: "",
-  imageUrl: defaultImage,
   variant: {
     sku: "",
     size: "",
@@ -38,8 +40,6 @@ const defaultValues = {
     totalStock: 0,
   },
 };
-
-const fieldClass = "border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600";
 
 export function NewProductDialog({
   open,
@@ -50,23 +50,35 @@ export function NewProductDialog({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const form = useForm({
-    resolver: zodResolver(createProductSchema),
+    resolver: zodResolver(createProductFormSchema),
     defaultValues,
   });
 
-  const close = () => {
+  const resetForm = () => {
     form.reset(defaultValues);
+    setImageFile(null);
+  };
+
+  const close = () => {
+    resetForm();
     onOpenChange(false);
   };
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
+      let imageUrl = defaultImage;
+      if (imageFile) {
+        const uploaded = await inventoryService.uploadProductImage(imageFile);
+        imageUrl = uploaded.url;
+      }
+
       const product = await inventoryService.createProduct({
         ...values,
         description: values.description || undefined,
-        imageUrl: values.imageUrl || undefined,
+        imageUrl,
         variant: {
           ...values.variant,
           size: values.variant.size || undefined,
@@ -89,128 +101,176 @@ export function NewProductDialog({
       open={open}
       onOpenChange={(value) => (value ? onOpenChange(true) : close())}
     >
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto border-zinc-800 bg-zinc-950 sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Novo produto</DialogTitle>
-          <DialogDescription>
+      <DialogContent fullscreen className="border-zinc-800 bg-zinc-950">
+        <DialogHeader className="shrink-0 border-b border-zinc-800 px-6 py-5 text-left sm:px-8">
+          <DialogTitle className="text-2xl font-semibold text-white">
+            Novo produto
+          </DialogTitle>
+          <DialogDescription className="text-zinc-400">
             Cadastre o produto com a primeira variante, preço e estoque
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <AuthField
-            id="dialog-name"
-            label="Nome"
-            error={form.formState.errors.name?.message}
-          >
-            <Input
-              id="dialog-name"
-              className={fieldClass}
-              {...form.register("name")}
-            />
-          </AuthField>
-
-          <AuthField
-            id="dialog-description"
-            label="Descrição"
-            error={form.formState.errors.description?.message}
-          >
-            <Textarea
-              id="dialog-description"
-              rows={2}
-              className={cn(fieldClass, "min-h-0")}
-              {...form.register("description")}
-            />
-          </AuthField>
-
-          <AuthField
-            id="dialog-imageUrl"
-            label="URL da imagem"
-            error={form.formState.errors.imageUrl?.message}
-          >
-            <Input
-              id="dialog-imageUrl"
-              className={fieldClass}
-              {...form.register("imageUrl")}
-            />
-          </AuthField>
-
-          <div className="rounded-lg border border-zinc-800 p-3">
-            <p className="mb-3 text-sm font-medium text-white">
-              Primeira variante
-            </p>
-            <div className="flex flex-col gap-3">
-              <AuthField
-                id="dialog-sku"
-                label="SKU"
-                error={form.formState.errors.variant?.sku?.message}
-              >
-                <Input
-                  id="dialog-sku"
-                  className={fieldClass}
-                  {...form.register("variant.sku")}
-                />
-              </AuthField>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <AuthField id="dialog-size" label="Tamanho">
-                  <Input
-                    id="dialog-size"
-                    className={fieldClass}
-                    {...form.register("variant.size")}
+        <form
+          onSubmit={onSubmit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <div className="flex-1 overflow-y-auto px-6 py-8 sm:px-8">
+            <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[minmax(0,320px)_1fr] lg:gap-10">
+              <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
+                <AuthField id="dialog-image" label="Imagem do produto">
+                  <ProductImageUpload
+                    value={imageFile}
+                    onChange={setImageFile}
                   />
                 </AuthField>
-                <AuthField id="dialog-color" label="Cor">
-                  <Input
-                    id="dialog-color"
-                    className={fieldClass}
-                    {...form.register("variant.color")}
-                  />
-                </AuthField>
-              </div>
+              </section>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <AuthField
-                  id="dialog-price"
-                  label="Preço (R$)"
-                  error={form.formState.errors.variant?.price?.message}
-                >
-                  <Input
-                    id="dialog-price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    className={fieldClass}
-                    {...form.register("variant.price", { valueAsNumber: true })}
-                  />
-                </AuthField>
-                <AuthField
-                  id="dialog-totalStock"
-                  label="Estoque inicial"
-                  error={form.formState.errors.variant?.totalStock?.message}
-                >
-                  <Input
-                    id="dialog-totalStock"
-                    type="number"
-                    min="0"
-                    className={fieldClass}
-                    {...form.register("variant.totalStock", {
-                      valueAsNumber: true,
-                    })}
-                  />
-                </AuthField>
+              <div className="flex flex-col gap-6">
+                <section className="space-y-4">
+                  <AuthField
+                    id="dialog-name"
+                    label="Nome"
+                    error={form.formState.errors.name?.message}
+                  >
+                    <AuthInput
+                      id="dialog-name"
+                      placeholder="Ex.: Camiseta básica algodão"
+                      {...form.register("name")}
+                    />
+                  </AuthField>
+
+                  <AuthField
+                    id="dialog-description"
+                    label="Descrição"
+                    error={form.formState.errors.description?.message}
+                  >
+                    <Textarea
+                      id="dialog-description"
+                      rows={4}
+                      placeholder="Descreva o produto, material, uso..."
+                      className={cn(
+                        authInputClass(),
+                        "min-h-28 resize-none py-3",
+                      )}
+                      {...form.register("description")}
+                    />
+                  </AuthField>
+                </section>
+
+                <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
+                  <div className="mb-5">
+                    <h3 className="text-sm font-semibold text-white">
+                      Primeira variante
+                    </h3>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      SKU, atributos, preço e estoque inicial
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <AuthField
+                      id="dialog-sku"
+                      label="SKU"
+                      error={form.formState.errors.variant?.sku?.message}
+                    >
+                      <Controller
+                        name="variant.sku"
+                        control={form.control}
+                        render={({ field }) => (
+                          <AuthInput
+                            id="dialog-sku"
+                            placeholder="Ex.: CAM-BAS-PRETA-M"
+                            value={field.value}
+                            onChange={(event) =>
+                              field.onChange(
+                                event.target.value.toUpperCase().trimStart(),
+                              )
+                            }
+                            onBlur={field.onBlur}
+                          />
+                        )}
+                      />
+                    </AuthField>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <AuthField id="dialog-size" label="Tamanho">
+                        <AuthInput
+                          id="dialog-size"
+                          placeholder="Ex.: M, 42, Único"
+                          {...form.register("variant.size")}
+                        />
+                      </AuthField>
+                      <AuthField id="dialog-color" label="Cor">
+                        <AuthInput
+                          id="dialog-color"
+                          placeholder="Ex.: Preto, Azul marinho"
+                          {...form.register("variant.color")}
+                        />
+                      </AuthField>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <AuthField
+                        id="dialog-price"
+                        label="Preço"
+                        error={form.formState.errors.variant?.price?.message}
+                      >
+                        <Controller
+                          name="variant.price"
+                          control={form.control}
+                          render={({ field }) => (
+                            <CurrencyInput
+                              id="dialog-price"
+                              placeholder="R$ 0,00"
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              onBlur={field.onBlur}
+                            />
+                          )}
+                        />
+                      </AuthField>
+                      <AuthField
+                        id="dialog-totalStock"
+                        label="Estoque inicial"
+                        error={
+                          form.formState.errors.variant?.totalStock?.message
+                        }
+                      >
+                        <Controller
+                          name="variant.totalStock"
+                          control={form.control}
+                          render={({ field }) => (
+                            <IntegerInput
+                              id="dialog-totalStock"
+                              placeholder="0"
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              onBlur={field.onBlur}
+                            />
+                          )}
+                        />
+                      </AuthField>
+                    </div>
+                  </div>
+                </section>
               </div>
             </div>
           </div>
 
-          <DialogFooter className="gap-2 border-t border-zinc-800 pt-4 sm:justify-end">
-            <Button type="button" variant="ghost" onClick={close}>
+          <DialogFooter className="shrink-0 gap-3 border-t border-zinc-800 bg-zinc-950/90 px-6 py-4 backdrop-blur sm:justify-end sm:px-8">
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-zinc-400 hover:text-white"
+              onClick={close}
+            >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={form.formState.isSubmitting}
-              className="bg-orange-500 font-semibold text-black hover:bg-orange-400"
+              className="min-w-32 bg-orange-500 font-semibold text-black hover:bg-orange-400"
             >
               {form.formState.isSubmitting ? "Salvando..." : "Cadastrar"}
             </Button>
