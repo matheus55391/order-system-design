@@ -1,23 +1,29 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { AuthField, AuthInput } from "@/components/auth/auth-field";
+import { use, useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { AuthField, AuthInput, authInputClass } from "@/components/auth/auth-field";
+import { AddVariantDialog } from "@/components/inventory/add-variant-dialog";
+import { ProductImageUpload } from "@/components/inventory/product-image-upload";
+import { SkuInput } from "@/components/inventory/sku-input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { addVariantSchema, updateProductSchema } from "@repo/shared";
+import { updateProductSchema } from "@repo/shared";
 import { ApiError } from "@repo/shared/data-access";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { isUuid } from "@/lib/query-cache";
-import { useAddVariantMutation } from "@/query/add-variant.mutation";
+import { cn } from "@/lib/utils";
 import { useGetInventoryProductQuery } from "@/query/get-inventory-product.query";
 import { useUpdateProductMutation } from "@/query/update-product.mutation";
 import { useUpdateVariantMutation } from "@/query/update-variant.mutation";
+
+const productFormSchema = updateProductSchema.omit({ imageUrl: true });
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -35,6 +41,7 @@ export default function EditProductPage({
   const router = useRouter();
   const tenantId = useTenantId();
   const validId = isUuid(id);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!validId) {
@@ -50,19 +57,8 @@ export default function EditProductPage({
   } = useGetInventoryProductQuery(tenantId, id, validId);
 
   const productForm = useForm({
-    resolver: zodResolver(updateProductSchema),
-    defaultValues: { name: "", description: "", imageUrl: "" },
-  });
-
-  const variantForm = useForm({
-    resolver: zodResolver(addVariantSchema),
-    defaultValues: {
-      sku: "",
-      size: "",
-      color: "",
-      price: 0,
-      totalStock: 0,
-    },
+    resolver: zodResolver(productFormSchema),
+    defaultValues: { name: "", description: "" },
   });
 
   useEffect(() => {
@@ -70,14 +66,11 @@ export default function EditProductPage({
     productForm.reset({
       name: product.name,
       description: product.description ?? "",
-      imageUrl: product.imageUrl ?? "",
     });
+    setImageFile(null);
   }, [product, productForm]);
 
   const saveProduct = useUpdateProductMutation();
-  const addVariant = useAddVariantMutation({
-    onSuccess: () => variantForm.reset(),
-  });
   const updateVariant = useUpdateVariantMutation();
 
   if (!validId) {
@@ -122,144 +115,123 @@ export default function EditProductPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader
-        title={product.name}
-        description="Edite informações do produto, preços e estoque por variante"
-      />
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader
+          title={product.name}
+          description="Edite informações do produto, preços e estoque por variante"
+        />
+        <Link
+          href="/inventory"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white"
+        >
+          <ArrowLeft className="size-4" />
+          Voltar
+        </Link>
+      </div>
 
       <DashCard>
         <form
           onSubmit={productForm.handleSubmit((values) => {
             if (!tenantId) return;
-            saveProduct.mutate({ productId: id, tenantId, values });
+            saveProduct.mutate({
+              productId: id,
+              tenantId,
+              values: {
+                ...values,
+                imageUrl: product.imageUrl ?? null,
+              },
+              imageFile,
+            });
           })}
-          className="flex flex-col gap-4 p-5"
+          className="p-5"
         >
-          <h2 className="text-sm font-medium text-white">Dados do produto</h2>
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,280px)_1fr]">
+            <section className="rounded-xl border border-border bg-card/50 p-5">
+              <AuthField id="edit-image" label="Imagem do produto">
+                <ProductImageUpload
+                  value={imageFile}
+                  onChange={setImageFile}
+                  currentImageUrl={product.imageUrl}
+                />
+              </AuthField>
+            </section>
 
-          <AuthField
-            id="name"
-            label="Nome"
-            error={productForm.formState.errors.name?.message}
-          >
-            <AuthInput id="name" {...productForm.register("name")} />
-          </AuthField>
+            <div className="flex flex-col gap-4">
+              <h2 className="text-sm font-medium text-white">Dados do produto</h2>
 
-          <AuthField
-            id="description"
-            label="Descrição"
-            error={productForm.formState.errors.description?.message}
-          >
-            <Textarea
-              id="description"
-              rows={3}
-              {...productForm.register("description")}
-            />
-          </AuthField>
+              <AuthField
+                id="name"
+                label="Nome"
+                error={productForm.formState.errors.name?.message}
+              >
+                <AuthInput id="name" {...productForm.register("name")} />
+              </AuthField>
 
-          <AuthField
-            id="imageUrl"
-            label="URL da imagem"
-            error={productForm.formState.errors.imageUrl?.message}
-          >
-            <AuthInput id="imageUrl" {...productForm.register("imageUrl")} />
-          </AuthField>
+              <AuthField
+                id="description"
+                label="Descrição"
+                error={productForm.formState.errors.description?.message}
+              >
+                <Textarea
+                  id="description"
+                  rows={4}
+                  className={cn(authInputClass(), "min-h-28 resize-none py-3")}
+                  {...productForm.register("description")}
+                />
+              </AuthField>
 
-          <Button
-            type="submit"
-            disabled={saveProduct.isPending}
-            className="w-fit"
-          >
-            {saveProduct.isPending ? "Salvando..." : "Salvar produto"}
-          </Button>
-        </form>
-      </DashCard>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-400">Variantes e estoque</h2>
-
-        {product.variants.map((variant) => (
-          <VariantEditor
-            key={variant.id}
-            variant={variant}
-            disabled={updateVariant.isPending}
-            onSave={(data) => {
-              if (!tenantId) return;
-              updateVariant.mutate({ variantId: variant.id, tenantId, data });
-            }}
-          />
-        ))}
-      </section>
-
-      <DashCard>
-        <form
-          onSubmit={variantForm.handleSubmit((values) => {
-            if (!tenantId) return;
-            addVariant.mutate({ productId: id, tenantId, values });
-          })}
-          className="flex flex-col gap-4 p-5"
-        >
-          <h2 className="text-sm font-medium text-white">Nova variante</h2>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <AuthField
-              id="new-sku"
-              label="SKU"
-              error={variantForm.formState.errors.sku?.message}
-            >
-              <AuthInput id="new-sku" {...variantForm.register("sku")} />
-            </AuthField>
-            <AuthField
-              id="new-price"
-              label="Preço (R$)"
-              error={variantForm.formState.errors.price?.message}
-            >
-              <AuthInput
-                id="new-price"
-                type="number"
-                step="0.01"
-                min="0"
-                {...variantForm.register("price", { valueAsNumber: true })}
-              />
-            </AuthField>
-            <AuthField id="new-size" label="Tamanho">
-              <AuthInput id="new-size" {...variantForm.register("size")} />
-            </AuthField>
-            <AuthField id="new-color" label="Cor">
-              <AuthInput id="new-color" {...variantForm.register("color")} />
-            </AuthField>
-            <AuthField
-              id="new-stock"
-              label="Estoque"
-              error={variantForm.formState.errors.totalStock?.message}
-            >
-              <AuthInput
-                id="new-stock"
-                type="number"
-                min="0"
-                {...variantForm.register("totalStock", { valueAsNumber: true })}
-              />
-            </AuthField>
+              <Button
+                type="submit"
+                disabled={saveProduct.isPending}
+                className="w-fit bg-orange-500 font-semibold text-black hover:bg-orange-400"
+              >
+                {saveProduct.isPending ? "Salvando..." : "Salvar produto"}
+              </Button>
+            </div>
           </div>
-
-          <Button type="submit" variant="outline" disabled={addVariant.isPending} className="w-fit">
-            {addVariant.isPending ? "Adicionando..." : "Adicionar variante"}
-          </Button>
         </form>
       </DashCard>
 
-      <Link href="/inventory" className="text-sm text-zinc-500 hover:text-white">
-        ← Voltar ao estoque
-      </Link>
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-medium text-zinc-400">
+            Variantes e estoque
+          </h2>
+          <AddVariantDialog productId={id} productName={product.name} />
+        </div>
+
+        {product.variants.length === 0 ? (
+          <DashCard>
+            <p className="p-5 text-sm text-muted-foreground">
+              Nenhuma variante cadastrada. Use o botão acima para adicionar.
+            </p>
+          </DashCard>
+        ) : (
+          product.variants.map((variant) => (
+            <VariantEditor
+              key={variant.id}
+              productName={product.name}
+              variant={variant}
+              disabled={updateVariant.isPending}
+              onSave={(data) => {
+                if (!tenantId) return;
+                updateVariant.mutate({ variantId: variant.id, tenantId, data });
+              }}
+            />
+          ))
+        )}
+      </section>
     </div>
   );
 }
 
 function VariantEditor({
+  productName,
   variant,
   disabled,
   onSave,
 }: {
+  productName: string;
   variant: {
     id: string;
     sku: string;
@@ -314,7 +286,21 @@ function VariantEditor({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <AuthInput placeholder="SKU" {...form.register("sku")} />
+          <Controller
+            name="sku"
+            control={form.control}
+            render={({ field }) => (
+              <SkuInput
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                placeholder="SKU"
+                productName={productName}
+                size={form.watch("size")}
+                color={form.watch("color")}
+              />
+            )}
+          />
           <AuthInput placeholder="Tamanho" {...form.register("size")} />
           <AuthInput placeholder="Cor" {...form.register("color")} />
           <AuthInput
@@ -332,7 +318,13 @@ function VariantEditor({
           />
         </div>
 
-        <Button type="submit" variant="outline" size="sm" disabled={disabled} className="w-fit">
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          className="w-fit"
+        >
           Salvar variante
         </Button>
       </form>

@@ -14,18 +14,26 @@ type UpdateProductVariables = {
     description?: string | null;
     imageUrl?: string | null;
   };
+  imageFile?: File | null;
 };
 
 export function useUpdateProductMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ productId, values }: UpdateProductVariables) =>
-      inventoryService.updateProduct(productId, {
+    mutationFn: async ({ productId, values, imageFile }: UpdateProductVariables) => {
+      let imageUrl = values.imageUrl;
+      if (imageFile) {
+        const uploaded = await inventoryService.uploadProductImage(imageFile);
+        imageUrl = uploaded.url;
+      }
+
+      return inventoryService.updateProduct(productId, {
         name: values.name,
         description: values.description ?? null,
-        imageUrl: values.imageUrl ?? null,
-      }),
+        imageUrl: imageUrl ?? null,
+      });
+    },
     onSuccess: (updatedProduct, variables) => {
       setInventoryProductCache(
         queryClient,
@@ -33,7 +41,9 @@ export function useUpdateProductMutation() {
         updatedProduct,
       );
       revalidateInventory(queryClient, variables.tenantId);
-      toast.success("Produto atualizado");
+      toast.success(
+        variables.imageFile ? "Produto e imagem atualizados" : "Produto atualizado",
+      );
     },
     onError: (error) => {
       toast.error(
