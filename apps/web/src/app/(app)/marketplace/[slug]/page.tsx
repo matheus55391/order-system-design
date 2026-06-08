@@ -1,21 +1,17 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { use, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { ProductCatalog } from "@/components/catalog/product-catalog";
 import { ViewToggle } from "@/components/catalog/view-toggle";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SearchInput } from "@/components/dashboard/search-input";
 import { useCatalogView } from "@/hooks/use-catalog-view";
 import { useTenantId } from "@/hooks/use-tenant-id";
+import { useAddToCartMutation } from "@/query/add-to-cart.mutation";
+import { useGetStoreProductsQuery } from "@/query/get-store-products.query";
 import { useAuthStore } from "@/store";
-import { queryKeys } from "@/lib/query-keys";
-import { revalidateInBackground } from "@/lib/query-cache";
-import { ApiError } from "@repo/shared/data-access";
-import { cartService, catalogService } from "@repo/shared/data-access";
 
 export default function StoreCatalogPage({
   params,
@@ -23,7 +19,6 @@ export default function StoreCatalogPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const queryClient = useQueryClient();
   const tenantId = useTenantId()!;
   const ownSlug = useAuthStore((s) => s.user?.tenant.slug);
   const isOwnStore = ownSlug === slug;
@@ -31,11 +26,8 @@ export default function StoreCatalogPage({
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { view, setView, ready } = useCatalogView();
 
-  const { data, isPending } = useQuery({
-    queryKey: queryKeys.storeProducts(slug),
-    queryFn: () => catalogService.getStoreProducts(slug),
-    enabled: !isOwnStore,
-  });
+  const { data, isPending } = useGetStoreProductsQuery(slug, !isOwnStore);
+  const addToCart = useAddToCartMutation();
 
   const filtered = useMemo(() => {
     if (!data?.products) return [];
@@ -47,30 +39,6 @@ export default function StoreCatalogPage({
         p.variants.some((v) => v.sku.toLowerCase().includes(q)),
     );
   }, [data, search]);
-
-  const addToCart = useMutation({
-    mutationFn: ({
-      variantId,
-      quantity,
-      priceTenantId,
-    }: {
-      variantId: string;
-      quantity: number;
-      priceTenantId: string;
-    }) =>
-      cartService.addItem({ variantId, quantity, priceTenantId }),
-    onSuccess: () => {
-      toast.success("Adicionado ao carrinho");
-      if (tenantId) {
-        revalidateInBackground(queryClient, queryKeys.cart(tenantId, slug));
-      }
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao adicionar",
-      );
-    },
-  });
 
   if (isOwnStore) {
     return (
@@ -146,6 +114,8 @@ export default function StoreCatalogPage({
             variantId,
             quantity,
             priceTenantId: data!.store.id,
+            tenantId,
+            storeSlug: slug,
           })
         }
         addToCartPending={addToCart.isPending}

@@ -1,27 +1,23 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { AuthField, AuthInput } from "@/components/auth/auth-field";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { ApiError } from "@repo/shared/data-access";
-import { inventoryService } from "@repo/shared/data-access";
 import { addVariantSchema, updateProductSchema } from "@repo/shared";
+import { ApiError } from "@repo/shared/data-access";
 import { useTenantId } from "@/hooks/use-tenant-id";
-import {
-  isUuid,
-  revalidateInventory,
-  setInventoryProductCache,
-} from "@/lib/query-cache";
-import { queryKeys } from "@/lib/query-keys";
+import { isUuid } from "@/lib/query-cache";
+import { useAddVariantMutation } from "@/query/add-variant.mutation";
+import { useGetInventoryProductQuery } from "@/query/get-inventory-product.query";
+import { useUpdateProductMutation } from "@/query/update-product.mutation";
+import { useUpdateVariantMutation } from "@/query/update-variant.mutation";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -37,7 +33,6 @@ export default function EditProductPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const validId = isUuid(id);
 
@@ -52,11 +47,7 @@ export default function EditProductPage({
     isPending,
     isError,
     error,
-  } = useQuery({
-    queryKey: queryKeys.inventory.detail(tenantId!, id),
-    queryFn: () => inventoryService.getProduct(id),
-    enabled: Boolean(tenantId && validId),
-  });
+  } = useGetInventoryProductQuery(tenantId, id, validId);
 
   const productForm = useForm({
     resolver: zodResolver(updateProductSchema),
@@ -83,83 +74,11 @@ export default function EditProductPage({
     });
   }, [product, productForm]);
 
-  const saveProduct = useMutation({
-    mutationFn: (values: {
-      name?: string;
-      description?: string | null;
-      imageUrl?: string | null;
-    }) =>
-      inventoryService.updateProduct(id, {
-        name: values.name,
-        description: values.description ?? null,
-        imageUrl: values.imageUrl ?? null,
-      }),
-    onSuccess: (updatedProduct) => {
-      if (!tenantId) return;
-      setInventoryProductCache(queryClient, tenantId, updatedProduct);
-      revalidateInventory(queryClient, tenantId);
-      toast.success("Produto atualizado");
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao salvar produto",
-      );
-    },
+  const saveProduct = useUpdateProductMutation();
+  const addVariant = useAddVariantMutation({
+    onSuccess: () => variantForm.reset(),
   });
-
-  const addVariant = useMutation({
-    mutationFn: (values: {
-      sku: string;
-      size?: string;
-      color?: string;
-      price: number;
-      totalStock: number;
-    }) =>
-      inventoryService.addVariant(id, {
-        ...values,
-        size: values.size || undefined,
-        color: values.color || undefined,
-      }),
-    onSuccess: (updatedProduct) => {
-      if (!tenantId) return;
-      setInventoryProductCache(queryClient, tenantId, updatedProduct);
-      revalidateInventory(queryClient, tenantId);
-      toast.success("Variante adicionada");
-      variantForm.reset();
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao adicionar variante",
-      );
-    },
-  });
-
-  const updateVariant = useMutation({
-    mutationFn: ({
-      variantId,
-      data,
-    }: {
-      variantId: string;
-      data: {
-        sku?: string;
-        size?: string;
-        color?: string;
-        price?: number;
-        totalStock?: number;
-      };
-    }) => inventoryService.updateVariant(variantId, data),
-    onSuccess: (updatedProduct) => {
-      if (!tenantId) return;
-      setInventoryProductCache(queryClient, tenantId, updatedProduct);
-      revalidateInventory(queryClient, tenantId);
-      toast.success("Variante atualizada");
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao atualizar variante",
-      );
-    },
-  });
+  const updateVariant = useUpdateVariantMutation();
 
   if (!validId) {
     return null;
@@ -210,9 +129,10 @@ export default function EditProductPage({
 
       <DashCard>
         <form
-          onSubmit={productForm.handleSubmit((values) =>
-            saveProduct.mutate(values),
-          )}
+          onSubmit={productForm.handleSubmit((values) => {
+            if (!tenantId) return;
+            saveProduct.mutate({ productId: id, tenantId, values });
+          })}
           className="flex flex-col gap-4 p-5"
         >
           <h2 className="text-sm font-medium text-white">Dados do produto</h2>
@@ -263,16 +183,20 @@ export default function EditProductPage({
             key={variant.id}
             variant={variant}
             disabled={updateVariant.isPending}
-            onSave={(data) =>
-              updateVariant.mutate({ variantId: variant.id, data })
-            }
+            onSave={(data) => {
+              if (!tenantId) return;
+              updateVariant.mutate({ variantId: variant.id, tenantId, data });
+            }}
           />
         ))}
       </section>
 
       <DashCard>
         <form
-          onSubmit={variantForm.handleSubmit((values) => addVariant.mutate(values))}
+          onSubmit={variantForm.handleSubmit((values) => {
+            if (!tenantId) return;
+            addVariant.mutate({ productId: id, tenantId, values });
+          })}
           className="flex flex-col gap-4 p-5"
         >
           <h2 className="text-sm font-medium text-white">Nova variante</h2>

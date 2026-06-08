@@ -154,11 +154,12 @@ src/
   app/         → rotas Next.js (App Router)
   components/  → UI shadcn, layouts, guards
   context/     → providers React (QueryClient, toasts)
-  lib/         → API client bootstrap, utils
+  lib/         → API client bootstrap, query-keys, query-cache
+  query/       → hooks TanStack Query (`get-cart.query.ts`, `add-to-cart.mutation.ts`, …)
   store/       → Zustand (sessão global)
 ```
 
-Data access: clients HTTP em `@repo/shared/data-access` (`authService`, `cartService`, etc.). Bootstrap do web em `lib/data-access.ts` (wire Zustand + axios). Tipos e schemas em `@repo/shared`.
+Data access: clients HTTP em `@repo/shared/data-access` (`authService`, `cartService`, etc.). Bootstrap do web em `lib/data-access.ts` (wire Zustand + axios). Tipos e schemas em `@repo/shared`. Páginas e componentes importam hooks de `@/query/*` — sem `useQuery`/`useMutation` inline.
 
 ## Documentação da API
 

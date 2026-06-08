@@ -19,7 +19,7 @@ pnpm docker:up && pnpm minio:setup && pnpm db:setup && pnpm dev
 
 | Path | Conteúdo |
 |------|----------|
-| `apps/web/src/` | `app/`, `components/`, `context/`, `lib/`, `store/` |
+| `apps/web/src/` | `app/`, `components/`, `context/`, `lib/`, `query/`, `store/` |
 | `apps/api/src/` | `modules/`, `infrastructure/`, `common/` |
 | `packages/database` | Prisma schema + client |
 | `packages/shared` | Types + Zod + contratos API (compilar antes da API) |
@@ -42,7 +42,7 @@ Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@r
 
 **Auth** — JWT HMAC em `jwt.service.ts`; sem Passport/Auth0.
 
-**Frontend** — sessão em Zustand (`store/`), forms com RHF + schemas de `@repo/shared`, fetch via TanStack Query + `@repo/shared/data-access`.
+**Frontend** — sessão em Zustand (`store/`), forms com RHF + schemas de `@repo/shared`, HTTP via `@repo/shared/data-access`. TanStack Query: hooks em `query/` (`nome-da-funcao.query.ts` / `nome-da-funcao.mutation.ts`); páginas e componentes importam de `@/query/*`, sem `useQuery`/`useMutation` inline.
 
 ## Checklist
 

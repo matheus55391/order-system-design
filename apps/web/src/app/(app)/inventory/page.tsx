@@ -1,24 +1,18 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { useTenantId } from "@/hooks/use-tenant-id";
-import { queryKeys } from "@/lib/query-keys";
-import { inventoryService } from "@repo/shared/data-access";
+import { useListInventoryProductsQuery } from "@/query/list-inventory-products.query";
 
 function InventoryContent() {
   const searchParams = useSearchParams();
   const openNew = searchParams.get("new") === "1";
   const tenantId = useTenantId();
 
-  const { data: products, isPending } = useQuery({
-    queryKey: queryKeys.inventory.all(tenantId!),
-    queryFn: () => inventoryService.listProducts(),
-    enabled: Boolean(tenantId),
-  });
+  const { data: products, isPending } = useListInventoryProductsQuery(tenantId);
 
   return (
     <InventoryTable

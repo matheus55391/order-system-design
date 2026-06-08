@@ -1,11 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { AuthField, AuthInput, authInputClass } from "@/components/auth/auth-field";
 import { ProductImageUpload } from "@/components/inventory/product-image-upload";
 import { Button } from "@/components/ui/button";
@@ -20,19 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { IntegerInput } from "@/components/ui/integer-input";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@repo/shared/data-access";
-import { inventoryService } from "@repo/shared/data-access";
 import { createProductFormSchema } from "@repo/shared";
 import { useTenantId } from "@/hooks/use-tenant-id";
-import {
-  revalidateInventory,
-  setInventoryProductCache,
-} from "@/lib/query-cache";
+import { useCreateProductMutation } from "@/query/create-product.mutation";
 import { cn } from "@/lib/utils";
-
-const defaultImage =
-  process.env.NEXT_PUBLIC_DEFAULT_PRODUCT_IMAGE ??
-  "http://localhost:9000/products/default-product.webp";
 
 const defaultValues = {
   name: "",
@@ -54,7 +43,6 @@ export function NewProductDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -73,43 +61,16 @@ export function NewProductDialog({
     onOpenChange(false);
   };
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    try {
-      let imageUrl = defaultImage;
-      if (imageFile) {
-        const uploaded = await inventoryService.uploadProductImage(imageFile);
-        imageUrl = uploaded.url;
-      }
-
-      const product = await inventoryService.createProduct({
-        ...values,
-        description: values.description || undefined,
-        imageUrl,
-        variant: {
-          ...values.variant,
-          size: values.variant.size || undefined,
-          color: values.variant.color || undefined,
-        },
-      });
-
-      if (!product?.id) {
-        throw new ApiError("Produto criado sem identificador", 500);
-      }
-
-      if (!tenantId) {
-        throw new ApiError("Sessão inválida", 401);
-      }
-
-      setInventoryProductCache(queryClient, tenantId, product);
-      revalidateInventory(queryClient, tenantId);
-      toast.success("Produto cadastrado");
+  const createProduct = useCreateProductMutation({
+    onSuccess: (productId) => {
       close();
-      router.push(`/inventory/${product.id}/edit`);
-    } catch (error) {
-      toast.error(
-        error instanceof ApiError ? error.message : "Erro ao cadastrar produto",
-      );
-    }
+      router.push(`/inventory/${productId}/edit`);
+    },
+  });
+
+  const onSubmit = form.handleSubmit((values) => {
+    if (!tenantId) return;
+    createProduct.mutate({ tenantId, values, imageFile });
   });
 
   return (
@@ -284,10 +245,10 @@ export function NewProductDialog({
             </Button>
             <Button
               type="submit"
-              disabled={form.formState.isSubmitting}
+              disabled={createProduct.isPending}
               className="min-w-32 bg-orange-500 font-semibold text-black hover:bg-orange-400"
             >
-              {form.formState.isSubmitting ? "Salvando..." : "Cadastrar"}
+              {createProduct.isPending ? "Salvando..." : "Cadastrar"}
             </Button>
           </DialogFooter>
         </form>

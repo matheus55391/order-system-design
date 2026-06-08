@@ -1,22 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Store } from "lucide-react";
 import Link from "next/link";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { useTenantId } from "@/hooks/use-tenant-id";
-import { queryKeys } from "@/lib/query-keys";
-import { catalogService } from "@repo/shared/data-access";
+import { useListStoresQuery } from "@/query/list-stores.query";
 
 export default function MarketplacePage() {
   const tenantId = useTenantId()!;
 
-  const { data: stores, isPending } = useQuery({
-    queryKey: queryKeys.stores(tenantId),
-    queryFn: () => catalogService.listStores(),
-    enabled: Boolean(tenantId),
-  });
+  const { data: stores, isPending } = useListStoresQuery(tenantId);
 
   if (isPending && !stores) {
     return <p className="text-muted-foreground">Carregando lojas...</p>;
