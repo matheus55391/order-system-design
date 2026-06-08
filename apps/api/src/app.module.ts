@@ -5,6 +5,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { CartModule } from "./modules/cart/cart.module";
 import { AuditModule } from "./modules/audit/audit.module";
+import { InventoryManagementModule } from "./modules/inventory-management/inventory-management.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { ReservationsModule } from "./modules/reservations/reservations.module";
 import { PrismaModule } from "./infrastructure/prisma/prisma.module";
@@ -32,6 +33,7 @@ import { EmailModule } from "./infrastructure/email/email.module";
     ReservationsModule,
     OrdersModule,
     AuditModule,
+    InventoryManagementModule,
   ],
 })
 export class AppModule {}

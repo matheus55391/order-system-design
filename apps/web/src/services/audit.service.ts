@@ -5,8 +5,8 @@ import type {
 } from "./audit.service.dto";
 
 class AuditService extends ApiService {
-  getMovements() {
-    return this.get<StockMovementDto[]>("/audit/movements");
+  getMovements(limit = 50) {
+    return this.get<StockMovementDto[]>(`/audit/movements?limit=${limit}`);
   }
 
   getSummary() {

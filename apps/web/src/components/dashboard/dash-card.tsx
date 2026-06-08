@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface DashCardProps {
@@ -7,13 +8,13 @@ interface DashCardProps {
 
 export function DashCard({ children, className }: DashCardProps) {
   return (
-    <div
+    <Card
       className={cn(
-        "overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/50",
+        "overflow-hidden border-zinc-800/80 bg-zinc-900/50 shadow-none",
         className,
       )}
     >
       {children}
-    </div>
+    </Card>
   );
 }

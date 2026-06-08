@@ -71,6 +71,13 @@ export class CartService {
     priceTenantId?: string,
   ) {
     const storeTenantId = priceTenantId ?? tenantId;
+
+    if (storeTenantId === tenantId) {
+      throw new BadRequestException(
+        "Compre produtos de outras lojas pelo marketplace",
+      );
+    }
+
     const cart = await this.ensureCart(tenantId, userId);
 
     const price = await this.prisma.tenantProductPrice.findUnique({

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function CatalogRedirect() {
-  redirect("/store");
+  redirect("/marketplace");
 }

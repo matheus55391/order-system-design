@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/store", label: "Minha loja" },
+  { href: "/inventory", label: "Estoque" },
   { href: "/marketplace", label: "Marketplace" },
   { href: "/cart", label: "Carrinho" },
   { href: "/orders", label: "Pedidos" },
-  { href: "/audit", label: "Auditoria" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

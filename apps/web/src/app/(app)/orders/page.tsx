@@ -75,7 +75,7 @@ export default function OrdersPage() {
           <div className="flex flex-col items-center gap-4 py-16 text-center">
             <p className="text-zinc-500">Nenhum pedido ainda</p>
             <Link
-              href="/store"
+              href="/marketplace"
               className="text-sm font-medium text-orange-400 hover:underline"
             >
               Começar compra

@@ -216,14 +216,12 @@ export default function CartPage() {
         <DashCard>
           <div className="flex flex-col items-center gap-4 py-16 text-center">
             <p className="text-zinc-500">Carrinho vazio</p>
-            <div className="flex gap-4 text-sm">
-              <Link href="/store" className="text-orange-400 hover:underline">
-                Minha loja
-              </Link>
-              <Link href="/marketplace" className="text-orange-400 hover:underline">
-                Marketplace
-              </Link>
-            </div>
+            <Link
+              href="/marketplace"
+              className="text-sm font-medium text-orange-400 hover:underline"
+            >
+              Ir ao marketplace
+            </Link>
           </div>
         </DashCard>
       )}
