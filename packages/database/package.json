@@ -1,0 +1,36 @@
+{
+  "name": "@repo/database",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prebuild": "pnpm db:generate",
+    "db:generate": "sh -c 'set -a && . ../../.env && set +a && prisma generate'",
+    "db:migrate": "sh -c 'set -a && . ../../.env && set +a && prisma migrate dev'",
+    "db:push": "sh -c 'set -a && . ../../.env && set +a && prisma db push'",
+    "db:seed": "sh -c 'set -a && . ../../.env && set +a && tsx prisma/seed.ts'",
+    "db:studio": "sh -c 'set -a && . ../../.env && set +a && prisma studio'"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.9.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.15.3",
+    "bcryptjs": "^3.0.2",
+    "prisma": "^6.9.0",
+    "tsx": "^4.19.4",
+    "typescript": "5.9.2"
+  }
+}

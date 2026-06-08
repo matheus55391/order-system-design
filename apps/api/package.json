@@ -1,0 +1,40 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "prebuild": "pnpm --filter @repo/shared --filter @repo/database run build",
+    "build": "nest build",
+    "predev": "pnpm --filter @repo/shared --filter @repo/database run build",
+    "dev": "sh -c 'set -a && . ../../.env && set +a && nest start --watch'",
+    "start": "sh -c 'set -a && . ../../.env && set +a && node dist/main.js'",
+    "lint": "eslint --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.3",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.3",
+    "@nestjs/platform-express": "^11.1.3",
+    "@repo/database": "workspace:*",
+    "@repo/shared": "workspace:*",
+    "amqplib": "^0.10.8",
+    "bcryptjs": "^3.0.2",
+    "ioredis": "^5.6.1",
+    "nodemailer": "^7.0.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.7",
+    "@nestjs/schematics": "^11.0.5",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/amqplib": "^0.10.7",
+    "@types/express": "^5.0.3",
+    "@types/nodemailer": "^6.4.17",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.39.1",
+    "typescript": "5.9.2"
+  }
+}

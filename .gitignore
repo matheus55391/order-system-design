@@ -36,3 +36,6 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+.pnpm-store/
+.pnpm-store/v3/files/00/0af4fc03d2ecf7155b911e07941ea071519cc573fc911548cdad0701587a3617d6dc9954610260c3d1c421adc4799ccec5835ec14b994d5fc5baa8a6f83e0a

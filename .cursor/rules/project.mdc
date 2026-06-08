@@ -1,0 +1,44 @@
+---
+description: Convenções do monorepo Order System Design
+alwaysApply: true
+---
+
+# Order System Design
+
+Monorepo B2B multi-tenant — reserva de estoque com TTL, JWT próprio, TypeScript strict.
+
+## Setup
+
+```bash
+pnpm docker:up && pnpm db:setup && pnpm dev
+```
+
+`.env` fica na **raiz** do monorepo (API e web carregam de lá).
+
+## Estrutura
+
+| Path | Conteúdo |
+|------|----------|
+| `apps/web/src/` | `app/`, `components/`, `context/`, `lib/`, `schema/`, `store/` |
+| `apps/api/src/` | `modules/`, `infrastructure/`, `common/` |
+| `packages/database` | Prisma schema + client |
+| `packages/shared` | Types + Zod (compilar antes da API) |
+
+Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@repo/shared`
+
+## Regras de domínio
+
+**Multi-tenancy** — filtrar por `tenantId` do JWT; nunca aceitar override no body.
+
+**Estoque** — carrinho cria `Reservation` + `reservedStock`; confirmação debita `totalStock`; expiração/cancelamento libera. Alterações só via `InventoryService` + Redis lock.
+
+**Auth** — JWT HMAC em `jwt.service.ts`; sem Passport/Auth0.
+
+**Frontend** — sessão em Zustand (`store/`), forms com RHF + `@/schema`, fetch via TanStack Query + `lib/api.ts`.
+
+## Checklist
+
+- [ ] `tenantId` em queries/guards
+- [ ] Estoque via `InventoryService`
+- [ ] Schemas compartilhados em `@repo/shared`
+- [ ] Diff mínimo, sem refatoração fora do escopo

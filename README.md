@@ -1,159 +1,120 @@
-# Turborepo starter
+# Order System Design
 
-This Turborepo starter is maintained by the Turborepo core team.
+Monorepo de estudo em system design B2B: plataforma multi-tenant com concorrência de estoque, reservas temporárias e pedidos transacionais.
 
-## Using this example
+## Stack
 
-Run the following command:
+| Camada | Tecnologias |
+|--------|-------------|
+| Frontend | Next.js, Shadcn UI, TanStack Query, React Hook Form, Zod, Zustand |
+| Backend | NestJS, JWT próprio (sem libs de auth), Prisma, PostgreSQL |
+| Infra local | Docker Compose — PostgreSQL, Redis, RabbitMQ |
 
-```sh
-npx create-turbo@latest
+## Arquitetura
+
+```
+apps/
+  api/     → NestJS (auth, catálogo, carrinho, reservas, pedidos)
+  web/     → Next.js (UI B2B)
+packages/
+  database/  → Prisma schema + client
+  shared/    → Types e schemas Zod compartilhados
 ```
 
-## What's inside?
+### Multi-tenancy
 
-This Turborepo includes the following packages/apps:
+Cada usuário pertence a um `tenant`. O JWT carrega `user_id`, `tenant_id` e `role`. Todas as queries do backend filtram por `tenant_id`.
 
-### Apps and Packages
+### Concorrência de estoque
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+1. **Adicionar ao carrinho** → cria `Reservation` com TTL + incrementa `reservedStock`
+2. **Redis lock** → serializa updates de inventário por variant
+3. **RabbitMQ** → agenda expiração da reserva
+4. **Confirmar pedido** → converte reserva, debita `totalStock` e `reservedStock`
+5. **Expiração/cancelamento** → libera `reservedStock`
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+### Estados de pedido
 
-### Utilities
+`PENDING` · `CONFIRMED` · `CANCELED` · `EXPIRED` — imutáveis após criação.
 
-This Turborepo has some additional tools already setup for you:
+## Setup
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+### 1. Infraestrutura
 
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+cp .env.example .env
+pnpm docker:up
 ```
 
-Without global `turbo`, use your package manager:
+### 2. Dependências
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+```bash
+pnpm install
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### 3. Banco de dados
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```bash
+pnpm db:generate
+pnpm db:push
+pnpm db:seed
 ```
 
-Without global `turbo`:
+### 4. Build dos pacotes compartilhados
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+Os pacotes `@repo/shared` e `@repo/database` são compilados para `dist/` antes do backend subir (automático via `predev`/`prebuild`).
+
+```bash
+pnpm --filter @repo/shared --filter @repo/database run build
 ```
 
-### Develop
+### 5. Desenvolvimento
 
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+```bash
+pnpm dev
 ```
 
-Without global `turbo`, use your package manager:
+- Web: http://localhost:3000
+- API: http://localhost:3001
+- RabbitMQ Management: http://localhost:15672 (order_system / order_system)
+- MailHog (e-mails dev): http://localhost:8025
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+## Contas de demonstração
+
+| E-mail | Tenant | Senha |
+|--------|--------|-------|
+| buyer@acme.com | Acme Corp | password123 |
+| admin@acme.com | Acme Corp | password123 |
+| buyer@globex.com | Globex Industries | password123 |
+
+## Scripts úteis
+
+```bash
+pnpm dev:api          # apenas backend
+pnpm dev:web          # apenas frontend
+pnpm db:studio        # Prisma Studio
+pnpm lint             # ESLint em todo o monorepo
+pnpm check-types      # TypeScript strict
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Frontend (`apps/web/src/`)
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
+```
+src/
+  app/         → rotas Next.js (App Router)
+  components/  → UI, layouts, guards
+  context/     → providers React (QueryClient, toasts)
+  lib/         → API client, utils
+  schema/      → schemas Zod (forms)
+  store/       → Zustand (sessão global)
 ```
 
-Without global `turbo`:
+## Agentes Cursor
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+[`.cursor/AGENTS.md`](.cursor/AGENTS.md) (guia) + [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (regra automática).
 
-### Remote Caching
+## Path aliases
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+- `apps/web`: `@/*` → `src/*`
+- `apps/api`: `@/*` → `src/*`
+- Pacotes compartilhados via `@repo/database` e `@repo/shared`
