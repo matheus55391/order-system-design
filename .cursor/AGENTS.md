@@ -5,23 +5,35 @@ Plataforma B2B multi-tenant com concorrência de estoque. Detalhes em `.cursor/r
 ## Stack
 
 - **web** (3000): Next.js, Shadcn, TanStack Query, RHF, Zod, Zustand
-- **api** (3001): NestJS, JWT próprio, Prisma, Redis, RabbitMQ
+- **api** (3001): NestJS, JWT próprio, Prisma, Redis (lock + cache), RabbitMQ
 - **packages**: `database` (Prisma), `shared` (types/Zod)
 
 ## Comandos
 
 ```bash
-pnpm docker:up && pnpm db:setup && pnpm dev
+pnpm docker:up && pnpm minio:setup && pnpm db:setup && pnpm dev
 ```
 
-Demo: `buyer@acme.com` / `password123`
+Demo: `loja-alfa@demo.com` / `password123` (comprar na Loja Beta via marketplace)
+
+## Backend — referência rápida
+
+| Infra | Arquivo | Uso |
+|-------|---------|-----|
+| Lock | `RedisService` | Mutations de estoque |
+| Cache | `CacheService` + `CacheKeys` | Read-through, best-effort |
+| MQ infra | `RabbitMqService` | publish/consume genérico |
+| MQ filas | `queues.ts` | Nomes e constantes |
+| MQ domínio | `*Publisher` / `*Worker` | Por módulo (email, reservation, order) |
+
+Doc completa: `apps/api/README.md`
 
 ## Roles (use no prompt quando necessário)
 
 | Foco | Orientação |
 |------|------------|
 | **Fullstack** | shared → API module → `lib/api.ts` → page web |
-| **Backend** | Guards JWT, `@CurrentUser()`, `InventoryService` para estoque |
+| **Backend** | Guards JWT, `@CurrentUser()`, `InventoryService` para estoque, `CacheService` para cache |
 | **Frontend** | `src/app`, `@/store`, `@/schema`, TanStack Query |
 | **Database** | `packages/database/prisma`, `pnpm db:push` / `db:seed` |
 | **Reviewer** | tenant_id em toda query, estoque só via lock, pedidos imutáveis |

@@ -9,6 +9,10 @@ import type {
   UpdateProductInput,
   UpdateVariantInput,
 } from "@repo/shared";
+import {
+  CacheKeys,
+  CacheService,
+} from "../../infrastructure/redis/cache.service";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 
@@ -22,6 +26,7 @@ export class InventoryManagementService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalogService: CatalogService,
+    private readonly cache: CacheService,
   ) {}
 
   listProducts(tenantId: string) {
@@ -82,6 +87,8 @@ export class InventoryManagementService {
       return product.id;
     });
 
+    await this.invalidateCatalog(tenantId);
+
     const product = await this.catalogService.getProduct(tenantId, productId);
     if (!product) throw new NotFoundException("Produto não encontrado");
     return product;
@@ -106,6 +113,8 @@ export class InventoryManagementService {
           : {}),
       },
     });
+
+    await this.invalidateCatalog(tenantId, productId);
 
     const product = await this.catalogService.getProduct(tenantId, productId);
     if (!product) throw new NotFoundException("Produto não encontrado");
@@ -152,6 +161,8 @@ export class InventoryManagementService {
         },
       });
     });
+
+    await this.invalidateCatalog(tenantId, productId);
 
     const product = await this.catalogService.getProduct(tenantId, productId);
     if (!product) throw new NotFoundException("Produto não encontrado");
@@ -224,12 +235,35 @@ export class InventoryManagementService {
     });
     if (!variant) throw new NotFoundException("Variante não encontrada");
 
+    await this.invalidateCatalog(tenantId, variant.productId);
+
     const product = await this.catalogService.getProduct(
       tenantId,
       variant.productId,
     );
     if (!product) throw new NotFoundException("Produto não encontrado");
     return product;
+  }
+
+  /**
+   * Invalida o catálogo do tenant vendedor após mutação de produto.
+   * - Lista de produtos (listProducts / inventory list)
+   * - Todas as visões de compradores nesta loja (catalog:store:{tenantId}:*)
+   * - Produto específico se productId fornecido
+   */
+  private async invalidateCatalog(
+    tenantId: string,
+    productId?: string,
+  ): Promise<void> {
+    const tasks: Promise<void>[] = [
+      this.cache.invalidateCatalogForSeller(tenantId),
+    ];
+
+    if (productId) {
+      tasks.push(this.cache.del(CacheKeys.catalogProduct(productId, tenantId)));
+    }
+
+    await Promise.all(tasks);
   }
 
   private async ensureTenantListsProduct(tenantId: string, productId: string) {

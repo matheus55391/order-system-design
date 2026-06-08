@@ -6,6 +6,12 @@ import {
 import { OrderStatus, ReservationStatus } from "@repo/database";
 import { Prisma } from "@repo/database";
 import type { UpdateOrderStatusInput } from "@repo/shared";
+import {
+  CacheKeys,
+  CacheService,
+  CACHE_TTL,
+} from "../../infrastructure/redis/cache.service";
+import { OrderPublisher } from "./order.publisher";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { InventoryService } from "../inventory/inventory.service";
 
@@ -23,11 +29,15 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
   include: typeof orderInclude;
 }>;
 
+type FormattedOrder = ReturnType<OrdersService["formatOrder"]>;
+
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
+    private readonly cache: CacheService,
+    private readonly orderPublisher: OrderPublisher,
   ) {}
 
   async confirmOrder(
@@ -132,20 +142,51 @@ export class OrdersService {
       );
     }
 
+    // Coleta sellers únicos para invalidar seus incoming orders
+    const uniqueSellerIds = [
+      ...new Set(reservations.map((r) => r.priceTenantId)),
+    ];
+
+    await Promise.all([
+      this.cache.del(CacheKeys.ordersList(tenantId, userId)),
+      ...uniqueSellerIds.map((sellerId) =>
+        this.cache.del(CacheKeys.ordersIncoming(sellerId)),
+      ),
+    ]);
+
+    this.orderPublisher.publishConfirmed({
+      orderId: order.id,
+      buyerTenantId: tenantId,
+      sellerTenantIds: uniqueSellerIds,
+    });
+
     return this.formatOrder(order, { perspective: "buyer" });
   }
 
   async listOrders(tenantId: string, userId: string) {
+    const key = CacheKeys.ordersList(tenantId, userId);
+    const cached = await this.cache.get<FormattedOrder[]>(key);
+    if (cached) return cached;
+
     const orders = await this.prisma.order.findMany({
       where: { tenantId, userId },
       include: orderInclude,
       orderBy: { createdAt: "desc" },
     });
 
-    return orders.map((order) => this.formatOrder(order, { perspective: "buyer" }));
+    const result = orders.map((order) =>
+      this.formatOrder(order, { perspective: "buyer" }),
+    );
+
+    await this.cache.set(key, result, CACHE_TTL.ORDERS);
+    return result;
   }
 
   async listIncomingOrders(sellerTenantId: string) {
+    const key = CacheKeys.ordersIncoming(sellerTenantId);
+    const cached = await this.cache.get<FormattedOrder[]>(key);
+    if (cached) return cached;
+
     const orders = await this.prisma.order.findMany({
       where: {
         items: { some: { priceTenantId: sellerTenantId } },
@@ -154,15 +195,22 @@ export class OrdersService {
       orderBy: { createdAt: "desc" },
     });
 
-    return orders.map((order) =>
+    const result = orders.map((order) =>
       this.formatOrder(order, {
         perspective: "seller",
         sellerTenantId,
       }),
     );
+
+    await this.cache.set(key, result, CACHE_TTL.ORDERS);
+    return result;
   }
 
   async getOrder(tenantId: string, userId: string, orderId: string) {
+    const key = CacheKeys.orderDetail(orderId, tenantId);
+    const cached = await this.cache.get<FormattedOrder>(key);
+    if (cached) return cached;
+
     const order = await this.prisma.order.findFirst({
       where: { id: orderId },
       include: orderInclude,
@@ -179,14 +227,16 @@ export class OrdersService {
       throw new NotFoundException("Pedido não encontrado");
     }
 
-    if (isSeller && !isBuyer) {
-      return this.formatOrder(order, {
-        perspective: "seller",
-        sellerTenantId: tenantId,
-      });
-    }
+    const result =
+      isSeller && !isBuyer
+        ? this.formatOrder(order, {
+            perspective: "seller",
+            sellerTenantId: tenantId,
+          })
+        : this.formatOrder(order, { perspective: "buyer" });
 
-    return this.formatOrder(order, { perspective: "buyer" });
+    await this.cache.set(key, result, CACHE_TTL.ORDERS);
+    return result;
   }
 
   async updateOrderStatus(
@@ -215,6 +265,14 @@ export class OrdersService {
       data: { status: input.status as OrderStatus },
       include: orderInclude,
     });
+
+    // Invalida as visões do pedido para seller e buyer
+    await Promise.all([
+      this.cache.del(CacheKeys.ordersIncoming(sellerTenantId)),
+      this.cache.del(CacheKeys.orderDetail(orderId, sellerTenantId)),
+      this.cache.del(CacheKeys.orderDetail(orderId, order.tenantId)),
+      this.cache.del(CacheKeys.ordersList(order.tenantId, order.userId)),
+    ]);
 
     return this.formatOrder(updated, {
       perspective: "seller",

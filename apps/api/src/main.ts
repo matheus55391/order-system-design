@@ -13,7 +13,8 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Order System API")
     .setDescription(
-      "API B2B multi-tenant — catálogo, carrinho, reservas, pedidos e auditoria de estoque.",
+      "API B2B multi-tenant — catálogo, carrinho, reservas, pedidos e auditoria de estoque. " +
+        "Cache Redis read-through (best-effort). Mensageria RabbitMQ com publishers/workers por domínio.",
     )
     .setVersion("1.0")
     .addBearerAuth(

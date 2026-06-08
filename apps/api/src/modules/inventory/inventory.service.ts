@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { StockMovementType } from "@repo/database";
 import { Prisma } from "@repo/database";
+import { CacheService } from "../../infrastructure/redis/cache.service";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { RedisService } from "../../infrastructure/redis/redis.service";
 
@@ -18,9 +20,12 @@ export interface StockAuditContext {
 
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly cache: CacheService,
   ) {}
 
   async reserveStock(
@@ -49,6 +54,8 @@ export class InventoryService {
         audit,
       });
     });
+
+    this.invalidateCaches(audit);
   }
 
   async releaseReservedStock(
@@ -69,6 +76,8 @@ export class InventoryService {
         audit,
       });
     });
+
+    this.invalidateCaches(audit);
   }
 
   async confirmStock(
@@ -98,10 +107,36 @@ export class InventoryService {
         audit,
       });
     });
+
+    this.invalidateCaches(audit);
   }
 
   getAvailableStock(totalStock: number, reservedStock: number): number {
     return Math.max(0, totalStock - reservedStock);
+  }
+
+  /**
+   * Dispara invalidação de cache de forma assíncrona (fire-and-forget).
+   *
+   * Mutações de estoque são operações críticas e não devem falhar por problemas
+   * no Redis. O CacheService já tem try/catch, mas ao não aguardar a Promise,
+   * garantimos que um Redis lento/indisponível não adiciona latência à resposta.
+   *
+   * Trade-off aceito: janela de staleness de alguns milissegundos entre o commit
+   * no banco e a invalidação do cache.
+   */
+  private invalidateCaches(audit: StockAuditContext): void {
+    const tasks: Promise<void>[] = [];
+
+    if (audit.priceTenantId) {
+      tasks.push(this.cache.invalidateCatalogForSeller(audit.priceTenantId));
+    }
+
+    tasks.push(this.cache.invalidateAuditForTenant(audit.tenantId));
+
+    Promise.all(tasks).catch((err) =>
+      this.logger.error("Falha ao invalidar cache após mutação de estoque", err),
+    );
   }
 
   private async withLock(

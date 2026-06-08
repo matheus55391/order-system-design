@@ -9,8 +9,9 @@ import { hash, compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 import type { RegisterInput } from "@repo/shared";
 import { JwtService } from "../../common/auth/jwt.service";
-import { EmailService } from "../../infrastructure/email/email.service";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import { CacheKeys, CacheService } from "../../infrastructure/redis/cache.service";
+import { EmailPublisher } from "../../infrastructure/email/email.publisher";
 
 @Injectable()
 export class AuthService {
@@ -21,7 +22,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly emailService: EmailService,
+    private readonly emailPublisher: EmailPublisher,
+    private readonly cache: CacheService,
   ) {}
 
   async login(email: string, password: string) {
@@ -81,6 +83,9 @@ export class AuthService {
       });
     });
 
+    // Novo tenant no marketplace — invalida lista de lojas cacheada
+    await this.cache.del(CacheKeys.catalogStores());
+
     return this.buildAuthResponse(user);
   }
 
@@ -133,7 +138,7 @@ export class AuthService {
       const webUrl = process.env.WEB_URL ?? "http://localhost:3000";
       const resetUrl = `${webUrl}/reset-password?token=${token}`;
 
-      await this.emailService.sendPasswordReset(user.email, resetUrl);
+      this.emailPublisher.publishPasswordReset(user.email, resetUrl);
     }
 
     return {

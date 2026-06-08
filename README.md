@@ -34,9 +34,32 @@ Loja / Marketplace → Carrinho (intenção) → Reserva (TTL + lock) → Pedido
 1. **Carrinho** — por loja vendedora (`userId` + `priceTenantId`); itens com `variantId`, `quantity`
 2. **Reservar estoque** — `POST /reservations/from-cart` bloqueia estoque com TTL
 3. **Redis lock** — serializa updates de inventário por variant
-4. **RabbitMQ** — agenda expiração da reserva
+4. **RabbitMQ** — tentativa de expiração assíncrona; **sweeper** em `GET /reservations` como fallback confiável
 5. **Confirmar pedido** — converte reserva, debita `totalStock` e `reservedStock`
 6. **StockMovement** — ledger de auditoria (`RESERVE`, `RELEASE`, `SALE`)
+
+### Cache (Redis)
+
+Read-through com fallback ao Postgres — cache é enhancement, não requisito.
+
+| Camada | Serviço | Papel |
+|--------|---------|-------|
+| Lock | `RedisService` | Serializa mutações de estoque por variant |
+| Cache | `CacheService` | Catálogo, pedidos, audit (TTL 30–120s) |
+
+Invalidação ativa após mutações. Detalhes: [`apps/api/README.md`](apps/api/README.md#redis).
+
+### Mensageria (RabbitMQ)
+
+Publishers e workers separados por domínio; `RabbitMqService` só cuida de infraestrutura.
+
+| Fila | Uso |
+|------|-----|
+| `reservation.expiry` | Expiração de reserva (worker + sweeper fallback) |
+| `email.send` | E-mails assíncronos (ex.: reset de senha) |
+| `order.confirmed` | Evento pós-confirmação (extensível: notificar vendedor) |
+
+Se o broker estiver indisponível, a API sobe normalmente e operações críticas usam fallback síncrono. Detalhes: [`apps/api/README.md`](apps/api/README.md#rabbitmq).
 
 ### Marketplace
 
@@ -135,6 +158,10 @@ src/
   schema/      → schemas Zod (forms)
   store/       → Zustand (sessão global)
 ```
+
+## Documentação da API
+
+[`apps/api/README.md`](apps/api/README.md) — módulos, cache, RabbitMQ, fluxos críticos e como estender.
 
 ## Agentes Cursor
 

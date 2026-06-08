@@ -6,7 +6,7 @@ import {
 import { ReservationStatus } from "@repo/database";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
-import { RabbitMqService } from "../../infrastructure/rabbitmq/rabbitmq.service";
+import { ReservationPublisher } from "./reservation.publisher";
 import { CartService } from "../cart/cart.service";
 import { InventoryService } from "../inventory/inventory.service";
 
@@ -19,7 +19,7 @@ export class ReservationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
-    private readonly rabbitMq: RabbitMqService,
+    private readonly reservationPublisher: ReservationPublisher,
     private readonly cartService: CartService,
   ) {}
 
@@ -112,7 +112,7 @@ export class ReservationsService {
         },
       );
 
-      await this.rabbitMq.publishReservationExpiry(
+      this.reservationPublisher.publishExpiry(
         reservation.id,
         this.ttlSeconds * 1000,
       );
@@ -161,20 +161,30 @@ export class ReservationsService {
   }
 
   async expireReservation(reservationId: string): Promise<void> {
+    // Transição atômica ACTIVE → EXPIRED com condição de guarda.
+    // updateMany retorna count=0 se outra operação (cancelamento, conversão
+    // ou worker duplicado) já alterou o status — elimina a race condition de
+    // double-release sem necessidade de lock adicional.
+    const { count } = await this.prisma.reservation.updateMany({
+      where: {
+        id: reservationId,
+        status: ReservationStatus.ACTIVE,
+        expiresAt: { lte: new Date() },
+      },
+      data: { status: ReservationStatus.EXPIRED },
+    });
+
+    if (count === 0) {
+      // Já expirada, cancelada, convertida ou ainda dentro do TTL — idempotente.
+      return;
+    }
+
+    // Busca somente para obter os dados necessários ao release de estoque.
     const reservation = await this.prisma.reservation.findUnique({
       where: { id: reservationId },
     });
 
-    if (!reservation || reservation.status !== ReservationStatus.ACTIVE) {
-      return;
-    }
-
-    if (reservation.expiresAt > new Date()) return;
-
-    await this.prisma.reservation.update({
-      where: { id: reservationId },
-      data: { status: ReservationStatus.EXPIRED },
-    });
+    if (!reservation) return;
 
     await this.inventoryService.releaseReservedStock(
       reservation.variantId,
@@ -227,11 +237,11 @@ export class ReservationsService {
         status: ReservationStatus.ACTIVE,
         expiresAt: { lte: new Date() },
       },
+      select: { id: true },
     });
 
-    for (const r of stale) {
-      await this.expireReservation(r.id);
-    }
+    // Processa expirations em paralelo — cada uma é idempotente via updateMany atômico.
+    await Promise.all(stale.map((r) => this.expireReservation(r.id)));
   }
 
   private formatReservation(

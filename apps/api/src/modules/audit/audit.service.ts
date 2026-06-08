@@ -1,11 +1,39 @@
 import { Injectable } from "@nestjs/common";
+import {
+  CacheKeys,
+  CacheService,
+  CACHE_TTL,
+} from "../../infrastructure/redis/cache.service";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async listMovements(tenantId: string, limit = 50) {
+    const key = CacheKeys.auditMovements(tenantId, limit);
+    const cached = await this.cache.get<Awaited<ReturnType<AuditService["_fetchMovements"]>>>(key);
+    if (cached) return cached;
+
+    const result = await this._fetchMovements(tenantId, limit);
+    await this.cache.set(key, result, CACHE_TTL.AUDIT);
+    return result;
+  }
+
+  async getSummary(tenantId: string) {
+    const key = CacheKeys.auditSummary(tenantId);
+    const cached = await this.cache.get<Awaited<ReturnType<AuditService["_fetchSummary"]>>>(key);
+    if (cached) return cached;
+
+    const result = await this._fetchSummary(tenantId);
+    await this.cache.set(key, result, CACHE_TTL.AUDIT);
+    return result;
+  }
+
+  private async _fetchMovements(tenantId: string, limit: number) {
     const movements = await this.prisma.stockMovement.findMany({
       where: { tenantId },
       include: {
@@ -34,7 +62,7 @@ export class AuditService {
     }));
   }
 
-  async getSummary(tenantId: string) {
+  private async _fetchSummary(tenantId: string) {
     const [reserve, release, sale] = await Promise.all([
       this.prisma.stockMovement.aggregate({
         where: { tenantId, type: "RESERVE" },
