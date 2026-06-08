@@ -28,13 +28,7 @@ export class OrdersService {
         status: ReservationStatus.ACTIVE,
       },
       include: {
-        variant: {
-          include: {
-            tenantPrices: {
-              where: { tenantId },
-            },
-          },
-        },
+        variant: true,
       },
     });
 
@@ -44,10 +38,20 @@ export class OrdersService {
       );
     }
 
-    const expired = reservations.some((r) => r.expiresAt <= new Date());
-    if (expired) {
+    if (reservations.some((r) => r.expiresAt <= new Date())) {
       throw new BadRequestException("Uma ou mais reservas expiraram");
     }
+
+    const prices = await this.prisma.tenantProductPrice.findMany({
+      where: {
+        tenantId: { in: reservations.map((r) => r.priceTenantId) },
+        variantId: { in: reservations.map((r) => r.variantId) },
+      },
+    });
+
+    const priceMap = new Map(
+      prices.map((p) => [`${p.tenantId}:${p.variantId}`, p.price]),
+    );
 
     const order = await this.prisma.$transaction(async (tx) => {
       let total = new Prisma.Decimal(0);
@@ -55,21 +59,23 @@ export class OrdersService {
         variantId: string;
         quantity: number;
         unitPrice: Prisma.Decimal;
+        priceTenantId: string;
       }[] = [];
 
       for (const reservation of reservations) {
-        const price = reservation.variant.tenantPrices[0];
-        if (!price) {
+        const unitPrice = priceMap.get(
+          `${reservation.priceTenantId}:${reservation.variantId}`,
+        );
+        if (!unitPrice) {
           throw new BadRequestException("Preço não encontrado para o produto");
         }
 
-        const unitPrice = price.price;
         total = total.add(unitPrice.mul(reservation.quantity));
-
         orderItems.push({
           variantId: reservation.variantId,
           quantity: reservation.quantity,
           unitPrice,
+          priceTenantId: reservation.priceTenantId,
         });
       }
 
@@ -79,16 +85,13 @@ export class OrdersService {
           userId,
           status: OrderStatus.CONFIRMED,
           total,
-          items: {
-            create: orderItems,
-          },
+          items: { create: orderItems },
         },
         include: {
           items: {
             include: {
-              variant: {
-                include: { product: true },
-              },
+              variant: { include: { product: true } },
+              priceTenant: { select: { id: true, name: true, slug: true } },
             },
           },
         },
@@ -102,10 +105,6 @@ export class OrdersService {
             orderId: createdOrder.id,
           },
         });
-
-        await tx.cartItem.deleteMany({
-          where: { reservationId: reservation.id },
-        });
       }
 
       return createdOrder;
@@ -115,6 +114,13 @@ export class OrdersService {
       await this.inventoryService.confirmStock(
         reservation.variantId,
         reservation.quantity,
+        {
+          tenantId,
+          userId,
+          reservationId: reservation.id,
+          orderId: order.id,
+          priceTenantId: reservation.priceTenantId,
+        },
       );
     }
 
@@ -127,9 +133,8 @@ export class OrdersService {
       include: {
         items: {
           include: {
-            variant: {
-              include: { product: true },
-            },
+            variant: { include: { product: true } },
+            priceTenant: { select: { id: true, name: true, slug: true } },
           },
         },
       },
@@ -145,51 +150,15 @@ export class OrdersService {
       include: {
         items: {
           include: {
-            variant: {
-              include: { product: true },
-            },
+            variant: { include: { product: true } },
+            priceTenant: { select: { id: true, name: true, slug: true } },
           },
         },
       },
     });
 
-    if (!order) {
-      throw new NotFoundException("Pedido não encontrado");
-    }
-
+    if (!order) throw new NotFoundException("Pedido não encontrado");
     return this.formatOrder(order);
-  }
-
-  async cancelOrder(tenantId: string, userId: string, orderId: string) {
-    const order = await this.prisma.order.findFirst({
-      where: { id: orderId, tenantId, userId },
-    });
-
-    if (!order) {
-      throw new NotFoundException("Pedido não encontrado");
-    }
-
-    if (order.status !== OrderStatus.PENDING) {
-      throw new BadRequestException(
-        "Apenas pedidos pendentes podem ser cancelados",
-      );
-    }
-
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.CANCELED },
-      include: {
-        items: {
-          include: {
-            variant: {
-              include: { product: true },
-            },
-          },
-        },
-      },
-    });
-
-    return this.formatOrder(updated);
   }
 
   private formatOrder(
@@ -198,6 +167,7 @@ export class OrdersService {
         items: {
           include: {
             variant: { include: { product: true } };
+            priceTenant: { select: { id: true; name: true; slug: true } };
           };
         };
       };
@@ -212,12 +182,14 @@ export class OrdersService {
         id: item.id,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
+        priceTenant: item.priceTenant,
         variant: {
           id: item.variant.id,
           sku: item.variant.sku,
           size: item.variant.size,
           color: item.variant.color,
           productName: item.variant.product.name,
+          productImageUrl: item.variant.product.imageUrl,
         },
       })),
     };

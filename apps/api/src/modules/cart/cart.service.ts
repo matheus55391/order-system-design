@@ -3,16 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { ReservationStatus } from "@repo/database";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
-import { ReservationsService } from "../reservations/reservations.service";
 
 @Injectable()
 export class CartService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly reservationsService: ReservationsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getCart(tenantId: string, userId: string) {
     const cart = await this.ensureCart(tenantId, userId);
@@ -24,36 +19,45 @@ export class CartService {
           include: {
             product: true,
             inventory: true,
-            tenantPrices: {
-              where: { tenantId },
-            },
           },
         },
-        reservation: true,
+        priceTenant: { select: { id: true, name: true, slug: true } },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const activeItems = items.filter(
-      (item) =>
-        item.reservation.status === ReservationStatus.ACTIVE &&
-        item.reservation.expiresAt > new Date(),
+    const prices = await this.prisma.tenantProductPrice.findMany({
+      where: {
+        tenantId: { in: [...new Set(items.map((i) => i.priceTenantId))] },
+        variantId: { in: items.map((i) => i.variantId) },
+      },
+    });
+
+    const priceMap = new Map(
+      prices.map((p) => [`${p.tenantId}:${p.variantId}`, p.price]),
     );
 
     return {
       id: cart.id,
-      items: activeItems.map((item) => ({
+      items: items.map((item) => ({
         id: item.id,
         quantity: item.quantity,
-        reservationId: item.reservationId,
-        expiresAt: item.reservation.expiresAt,
+        priceTenantId: item.priceTenantId,
+        priceTenant: item.priceTenant,
         variant: {
           id: item.variant.id,
           sku: item.variant.sku,
           size: item.variant.size,
           color: item.variant.color,
           productName: item.variant.product.name,
-          price: Number(item.variant.tenantPrices[0]?.price ?? 0),
+          productImageUrl: item.variant.product.imageUrl,
+          availableStock: item.variant.inventory
+            ? item.variant.inventory.totalStock -
+              item.variant.inventory.reservedStock
+            : 0,
+          price: Number(
+            priceMap.get(`${item.priceTenantId}:${item.variantId}`) ?? 0,
+          ),
         },
       })),
     };
@@ -64,58 +68,46 @@ export class CartService {
     userId: string,
     variantId: string,
     quantity: number,
+    priceTenantId?: string,
   ) {
+    const storeTenantId = priceTenantId ?? tenantId;
     const cart = await this.ensureCart(tenantId, userId);
+
+    const price = await this.prisma.tenantProductPrice.findUnique({
+      where: {
+        tenantId_variantId: { tenantId: storeTenantId, variantId },
+      },
+    });
+
+    if (!price) {
+      throw new NotFoundException("Produto não disponível nesta loja");
+    }
 
     const existing = await this.prisma.cartItem.findUnique({
       where: {
-        cartId_variantId: {
+        cartId_variantId_priceTenantId: {
           cartId: cart.id,
           variantId,
+          priceTenantId: storeTenantId,
         },
       },
-      include: { reservation: true },
     });
 
-    if (existing?.reservation.status === ReservationStatus.ACTIVE) {
-      throw new BadRequestException(
-        "Item já está no carrinho. Atualize a quantidade.",
-      );
+    if (existing) {
+      return this.prisma.cartItem.update({
+        where: { id: existing.id },
+        data: { quantity: existing.quantity + quantity },
+      });
     }
 
-    const reservation = await this.reservationsService.createReservation({
-      tenantId,
-      userId,
-      variantId,
-      quantity,
-    });
-
-    const item = await this.prisma.cartItem.create({
+    return this.prisma.cartItem.create({
       data: {
         cartId: cart.id,
         variantId,
         quantity,
-        reservationId: reservation.id,
-      },
-      include: {
-        variant: {
-          include: { product: true },
-        },
-        reservation: true,
+        priceTenantId: storeTenantId,
       },
     });
-
-    return {
-      id: item.id,
-      quantity: item.quantity,
-      reservationId: item.reservationId,
-      expiresAt: item.reservation.expiresAt,
-      variant: {
-        id: item.variant.id,
-        sku: item.variant.sku,
-        productName: item.variant.product.name,
-      },
-    };
   }
 
   async updateItem(
@@ -125,70 +117,34 @@ export class CartService {
     quantity: number,
   ) {
     const item = await this.findCartItem(itemId, tenantId, userId);
-
-    if (item.reservation.status !== ReservationStatus.ACTIVE) {
-      throw new BadRequestException("Reserva não está ativa");
-    }
-
-    if (quantity === item.quantity) {
-      return item;
-    }
-
-    await this.reservationsService.cancelReservation(
-      item.reservationId,
-      tenantId,
-      userId,
-    );
-
-    const reservation = await this.reservationsService.createReservation({
-      tenantId,
-      userId,
-      variantId: item.variantId,
-      quantity,
-    });
-
     return this.prisma.cartItem.update({
-      where: { id: itemId },
-      data: {
-        quantity,
-        reservationId: reservation.id,
-      },
-      include: {
-        variant: { include: { product: true } },
-        reservation: true,
-      },
+      where: { id: item.id },
+      data: { quantity },
     });
   }
 
   async removeItem(tenantId: string, userId: string, itemId: string) {
     const item = await this.findCartItem(itemId, tenantId, userId);
-
-    await this.reservationsService.cancelReservation(
-      item.reservationId,
-      tenantId,
-      userId,
-    );
-
-    await this.prisma.cartItem.delete({ where: { id: itemId } });
-
+    await this.prisma.cartItem.delete({ where: { id: item.id } });
     return { success: true };
   }
 
-  private async ensureCart(tenantId: string, userId: string) {
-    const existing = await this.prisma.cart.findUnique({
-      where: { userId },
+  async removeItems(tenantId: string, userId: string, itemIds: string[]) {
+    const cart = await this.ensureCart(tenantId, userId);
+    await this.prisma.cartItem.deleteMany({
+      where: { cartId: cart.id, id: { in: itemIds } },
     });
+  }
 
+  private async ensureCart(tenantId: string, userId: string) {
+    const existing = await this.prisma.cart.findUnique({ where: { userId } });
     if (existing) {
       if (existing.tenantId !== tenantId) {
         throw new BadRequestException("Carrinho pertence a outro tenant");
       }
       return existing;
     }
-
-    return this.prisma.cart.create({
-      data: { userId, tenantId },
-    });
+    return this.prisma.cart.create({ data: { userId, tenantId } });
   }
 
   private async findCartItem(
@@ -198,10 +154,7 @@ export class CartService {
   ) {
     const item = await this.prisma.cartItem.findUnique({
       where: { id: itemId },
-      include: {
-        cart: true,
-        reservation: true,
-      },
+      include: { cart: true },
     });
 
     if (!item || item.cart.userId !== userId || item.cart.tenantId !== tenantId) {

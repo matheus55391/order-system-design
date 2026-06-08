@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 import {
   forgotPasswordSchema,
   loginSchema,
+  refreshTokenSchema,
   registerSchema,
   resetPasswordSchema,
 } from "@repo/shared";
@@ -35,6 +36,18 @@ export class AuthController {
   resetPassword(@Body() body: unknown) {
     const input = resetPasswordSchema.parse(body);
     return this.authService.resetPassword(input.token, input.password);
+  }
+
+  @Post("refresh")
+  refresh(@Body() body: unknown) {
+    const input = refreshTokenSchema.parse(body);
+    return this.authService.refresh(input.refreshToken);
+  }
+
+  @Post("logout")
+  logout(@Body() body: unknown) {
+    const input = refreshTokenSchema.parse(body);
+    return this.authService.logout(input.refreshToken);
   }
 
   @Get("tenants")

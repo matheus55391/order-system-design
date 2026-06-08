@@ -1,6 +1,6 @@
 # Order System Design
 
-Monorepo de estudo em system design B2B: plataforma multi-tenant com concorrência de estoque, reservas temporárias e pedidos transacionais.
+Monorepo de estudo em system design B2B: plataforma multi-tenant com marketplace, concorrência de estoque, reservas temporárias e pedidos transacionais.
 
 ## Stack
 
@@ -8,14 +8,14 @@ Monorepo de estudo em system design B2B: plataforma multi-tenant com concorrênc
 |--------|-------------|
 | Frontend | Next.js, Shadcn UI, TanStack Query, React Hook Form, Zod, Zustand |
 | Backend | NestJS, JWT próprio (sem libs de auth), Prisma, PostgreSQL |
-| Infra local | Docker Compose — PostgreSQL, Redis, RabbitMQ |
+| Infra local | Docker Compose — PostgreSQL, Redis, RabbitMQ, MinIO, MailHog |
 
 ## Arquitetura
 
 ```
 apps/
-  api/     → NestJS (auth, catálogo, carrinho, reservas, pedidos)
-  web/     → Next.js (UI B2B)
+  api/     → NestJS (auth, catálogo, carrinho, reservas, pedidos, auditoria)
+  web/     → Next.js (loja, marketplace, carrinho, pedidos)
 packages/
   database/  → Prisma schema + client
   shared/    → Types e schemas Zod compartilhados
@@ -23,19 +23,35 @@ packages/
 
 ### Multi-tenancy
 
-Cada usuário pertence a um `tenant`. O JWT carrega `user_id`, `tenant_id` e `role`. Todas as queries do backend filtram por `tenant_id`.
+Cada usuário pertence a um `tenant`. O JWT carrega `user_id`, `tenant_id` e `role`. Queries filtram por `tenant_id` do comprador; preços vêm do `priceTenantId` (loja vendedora).
 
-### Concorrência de estoque
+### Fluxo de compra
 
-1. **Adicionar ao carrinho** → cria `Reservation` com TTL + incrementa `reservedStock`
-2. **Redis lock** → serializa updates de inventário por variant
-3. **RabbitMQ** → agenda expiração da reserva
-4. **Confirmar pedido** → converte reserva, debita `totalStock` e `reservedStock`
-5. **Expiração/cancelamento** → libera `reservedStock`
+```
+Loja / Marketplace → Carrinho (intenção) → Reserva (TTL + lock) → Pedido (imutável)
+```
 
-### Estados de pedido
+1. **Carrinho** — itens com `variantId`, `quantity` e `priceTenantId` (sua loja ou outra)
+2. **Reservar estoque** — `POST /reservations/from-cart` bloqueia estoque com TTL
+3. **Redis lock** — serializa updates de inventário por variant
+4. **RabbitMQ** — agenda expiração da reserva
+5. **Confirmar pedido** — converte reserva, debita `totalStock` e `reservedStock`
+6. **StockMovement** — ledger de auditoria (`RESERVE`, `RELEASE`, `SALE`)
 
-`PENDING` · `CONFIRMED` · `CANCELED` · `EXPIRED` — imutáveis após criação.
+### Marketplace
+
+- **Minha loja** (`/store`) — catálogo com preços do seu tenant
+- **Marketplace** (`/marketplace`) — comprar de outras lojas com preços do tenant vendedor
+
+### Imagens (MinIO)
+
+Produtos usam a mesma imagem padrão (produto sem modelo) em `packages/database/seed-assets/default-product.webp`, servida via MinIO em `http://localhost:9000/products/default-product.webp`. Após subir o Docker:
+
+```bash
+pnpm minio:setup
+```
+
+Console MinIO: http://localhost:9001 (order_system / order_system)
 
 ## Setup
 
@@ -44,6 +60,7 @@ Cada usuário pertence a um `tenant`. O JWT carrega `user_id`, `tenant_id` e `ro
 ```bash
 cp .env.example .env
 pnpm docker:up
+pnpm minio:setup
 ```
 
 ### 2. Dependências
@@ -55,20 +72,10 @@ pnpm install
 ### 3. Banco de dados
 
 ```bash
-pnpm db:generate
-pnpm db:push
-pnpm db:seed
+pnpm db:setup
 ```
 
-### 4. Build dos pacotes compartilhados
-
-Os pacotes `@repo/shared` e `@repo/database` são compilados para `dist/` antes do backend subir (automático via `predev`/`prebuild`).
-
-```bash
-pnpm --filter @repo/shared --filter @repo/database run build
-```
-
-### 5. Desenvolvimento
+### 4. Desenvolvimento
 
 ```bash
 pnpm dev
@@ -78,6 +85,7 @@ pnpm dev
 - API: http://localhost:3001
 - RabbitMQ Management: http://localhost:15672 (order_system / order_system)
 - MailHog (e-mails dev): http://localhost:8025
+- MinIO API: http://localhost:9000 · Console: http://localhost:9001
 
 ## Contas de demonstração
 
@@ -87,12 +95,15 @@ pnpm dev
 | admin@acme.com | Acme Corp | password123 |
 | buyer@globex.com | Globex Industries | password123 |
 
+Teste marketplace: login como `buyer@acme.com` e compre na loja Globex (preços diferentes).
+
 ## Scripts úteis
 
 ```bash
 pnpm dev:api          # apenas backend
 pnpm dev:web          # apenas frontend
 pnpm db:studio        # Prisma Studio
+pnpm minio:setup      # bucket products + imagens de exemplo
 pnpm lint             # ESLint em todo o monorepo
 pnpm check-types      # TypeScript strict
 ```

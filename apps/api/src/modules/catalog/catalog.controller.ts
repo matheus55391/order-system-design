@@ -9,6 +9,16 @@ import { CatalogService } from "./catalog.service";
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
+  @Get("stores")
+  listStores(@CurrentUser() user: TenantContext) {
+    return this.catalogService.listStores(user.tenantId);
+  }
+
+  @Get("stores/:slug/products")
+  listStoreProducts(@Param("slug") slug: string) {
+    return this.catalogService.listProductsByStoreSlug(slug);
+  }
+
   @Get("products")
   listProducts(@CurrentUser() user: TenantContext) {
     return this.catalogService.listProducts(user.tenantId);

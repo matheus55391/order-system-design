@@ -5,12 +5,12 @@ alwaysApply: true
 
 # Order System Design
 
-Monorepo B2B multi-tenant — reserva de estoque com TTL, JWT próprio, TypeScript strict.
+Monorepo B2B multi-tenant — marketplace, reserva de estoque com TTL, JWT próprio, TypeScript strict.
 
 ## Setup
 
 ```bash
-pnpm docker:up && pnpm db:setup && pnpm dev
+pnpm docker:up && pnpm minio:setup && pnpm db:setup && pnpm dev
 ```
 
 `.env` fica na **raiz** do monorepo (API e web carregam de lá).
@@ -28,9 +28,11 @@ Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@r
 
 ## Regras de domínio
 
-**Multi-tenancy** — filtrar por `tenantId` do JWT; nunca aceitar override no body.
+**Multi-tenancy** — filtrar por `tenantId` do JWT (comprador); preços via `priceTenantId` (loja vendedora).
 
-**Estoque** — carrinho cria `Reservation` + `reservedStock`; confirmação debita `totalStock`; expiração/cancelamento libera. Alterações só via `InventoryService` + Redis lock.
+**Fluxo** — Carrinho (intenção) → `POST /reservations/from-cart` → `POST /orders/confirm`. Cart não reserva estoque diretamente.
+
+**Estoque** — alterações só via `InventoryService` + Redis lock; `StockMovement` registra RESERVE/RELEASE/SALE.
 
 **Auth** — JWT HMAC em `jwt.service.ts`; sem Passport/Auth0.
 

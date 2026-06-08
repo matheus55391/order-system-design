@@ -84,3 +84,7 @@
   --primary: #f97316;
   --primary-foreground: #000000;
 }
+
+.app-theme {
+  color-scheme: dark;
+}

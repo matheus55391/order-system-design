@@ -35,9 +35,9 @@ export default function RegisterPage() {
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       const response = await api.register(values);
-      setSession(response.token, response.user);
+      setSession(response.token, response.refreshToken, response.user);
       toast.success("Conta criada com sucesso");
-      router.push("/catalog");
+      router.push("/store");
     } catch (error) {
       toast.error(
         error instanceof ApiError ? error.message : "Erro ao cadastrar",

@@ -1,4 +1,6 @@
 import type { AuthUser } from "@repo/shared";
+import { isTokenExpired } from "@/lib/auth-token";
+import { useAuthStore } from "@/store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -12,11 +14,65 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
-  path: string,
-  options: RequestInit & { token?: string | null } = {},
-): Promise<T> {
-  const { token, headers, ...rest } = options;
+type RequestOptions = RequestInit & {
+  token?: string | null;
+  skipAuth?: boolean;
+  _retried?: boolean;
+};
+
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const { refreshToken, setSession, clearSession } = useAuthStore.getState();
+    if (!refreshToken) {
+      clearSession();
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        clearSession();
+        return null;
+      }
+
+      const data = (await response.json()) as LoginResponse;
+      setSession(data.token, data.refreshToken, data.user);
+      return data.token;
+    } catch {
+      clearSession();
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+export async function getAccessToken(): Promise<string | null> {
+  const { token, refreshToken } = useAuthStore.getState();
+  if (token && !isTokenExpired(token)) return token;
+  if (!refreshToken) return null;
+  return refreshAccessToken();
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { token: tokenOverride, skipAuth, _retried, headers, ...rest } =
+    options;
+
+  let token = tokenOverride ?? null;
+  if (!skipAuth && token === null) {
+    token = await getAccessToken();
+  }
 
   const response = await fetch(`${API_URL}${path}`, {
     ...rest,
@@ -26,6 +82,19 @@ async function request<T>(
       ...headers,
     },
   });
+
+  if (
+    response.status === 401 &&
+    !skipAuth &&
+    !_retried &&
+    !path.startsWith("/auth/")
+  ) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      return request<T>(path, { ...options, token: newToken, _retried: true });
+    }
+    useAuthStore.getState().clearSession();
+  }
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as {
@@ -48,9 +117,17 @@ async function request<T>(
 
 export interface LoginResponse {
   token: string;
+  refreshToken: string;
   user: AuthUser & {
     tenant: { id: string; name: string; slug: string };
   };
+}
+
+export interface Store {
+  id: string;
+  name: string;
+  slug: string;
+  _count: { productPrices: number };
 }
 
 export interface ProductVariant {
@@ -68,20 +145,23 @@ export interface Product {
   id: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   variants: ProductVariant[];
 }
 
 export interface CartItem {
   id: string;
   quantity: number;
-  reservationId: string;
-  expiresAt: string;
+  priceTenantId: string;
+  priceTenant: { id: string; name: string; slug: string };
   variant: {
     id: string;
     sku: string;
     size: string | null;
     color: string | null;
     productName: string;
+    productImageUrl: string | null;
+    availableStock: number;
     price: number;
   };
 }
@@ -89,6 +169,24 @@ export interface CartItem {
 export interface Cart {
   id: string;
   items: CartItem[];
+}
+
+export interface Reservation {
+  id: string;
+  quantity: number;
+  status: string;
+  expiresAt: string;
+  priceTenantId: string;
+  unitPrice: number;
+  priceTenant: { id: string; name: string; slug: string };
+  variant: {
+    id: string;
+    sku: string;
+    size: string | null;
+    color: string | null;
+    productName: string;
+    productImageUrl: string | null;
+  };
 }
 
 export interface Order {
@@ -100,14 +198,34 @@ export interface Order {
     id: string;
     quantity: number;
     unitPrice: number;
+    priceTenant: { id: string; name: string; slug: string };
     variant: {
       id: string;
       sku: string;
       size: string | null;
       color: string | null;
       productName: string;
+      productImageUrl: string | null;
     };
   }[];
+}
+
+export interface StockMovement {
+  id: string;
+  type: "RESERVE" | "RELEASE" | "SALE";
+  quantity: number;
+  createdAt: string;
+  reservationId: string | null;
+  orderId: string | null;
+  priceTenant: { id: string; name: string; slug: string } | null;
+  user: { id: string; name: string; email: string } | null;
+  variant: { id: string; sku: string; productName: string };
+}
+
+export interface AuditSummary {
+  reserve: { count: number; quantity: number };
+  release: { count: number; quantity: number };
+  sale: { count: number; quantity: number };
 }
 
 export const api = {
@@ -143,19 +261,54 @@ export const api = {
   listTenants: () =>
     request<{ slug: string; name: string }[]>("/auth/tenants"),
 
-  me: (token: string) =>
+  refresh: (refreshToken: string) =>
+    request<LoginResponse>("/auth/refresh", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({ refreshToken }),
+    }),
+
+  logout: (refreshToken: string) =>
+    request<{ success: boolean }>("/auth/logout", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({ refreshToken }),
+    }),
+
+  me: (token?: string) =>
     request<LoginResponse["user"]>("/auth/me", { token }),
 
   getProducts: (token: string) =>
     request<Product[]>("/catalog/products", { token }),
 
+  listStores: (token: string) =>
+    request<Store[]>("/catalog/stores", { token }),
+
+  getStoreProducts: (token: string, slug: string) =>
+    request<{ store: { id: string; name: string; slug: string }; products: Product[] }>(
+      `/catalog/stores/${slug}/products`,
+      { token },
+    ),
+
   getCart: (token: string) => request<Cart>("/cart", { token }),
 
-  addToCart: (token: string, variantId: string, quantity: number) =>
-    request<CartItem>("/cart/items", {
+  addToCart: (
+    token: string,
+    variantId: string,
+    quantity: number,
+    priceTenantId?: string,
+  ) =>
+    request<unknown>("/cart/items", {
       method: "POST",
       token,
-      body: JSON.stringify({ variantId, quantity }),
+      body: JSON.stringify({ variantId, quantity, priceTenantId }),
+    }),
+
+  updateCartItem: (token: string, itemId: string, quantity: number) =>
+    request<unknown>(`/cart/items/${itemId}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ quantity }),
     }),
 
   removeFromCart: (token: string, itemId: string) =>
@@ -163,6 +316,19 @@ export const api = {
       method: "DELETE",
       token,
     }),
+
+  reserveFromCart: (token: string, cartItemIds?: string[]) =>
+    request<Reservation[]>("/reservations/from-cart", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ cartItemIds }),
+    }),
+
+  getReservations: (token: string) =>
+    request<Reservation[]>("/reservations", { token }),
+
+  cancelReservation: (token: string, id: string) =>
+    request<void>(`/reservations/${id}`, { method: "DELETE", token }),
 
   confirmOrder: (token: string, reservationIds: string[]) =>
     request<Order>("/orders/confirm", {
@@ -172,4 +338,10 @@ export const api = {
     }),
 
   getOrders: (token: string) => request<Order[]>("/orders", { token }),
+
+  getAuditMovements: (token: string) =>
+    request<StockMovement[]>("/audit/movements", { token }),
+
+  getAuditSummary: (token: string) =>
+    request<AuditSummary>("/audit/summary", { token }),
 };

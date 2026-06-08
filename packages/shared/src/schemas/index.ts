@@ -15,6 +15,11 @@ export const registerSchema = z.object({
 export const addToCartSchema = z.object({
   variantId: z.string().uuid(),
   quantity: z.number().int().min(1).max(100),
+  priceTenantId: z.string().uuid().optional(),
+});
+
+export const reserveFromCartSchema = z.object({
+  cartItemIds: z.array(z.string().uuid()).optional(),
 });
 
 export const updateCartItemSchema = z.object({
@@ -34,10 +39,16 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
 });
 
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, "Refresh token inválido"),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type AddToCartInput = z.infer<typeof addToCartSchema>;
+export type ReserveFromCartInput = z.infer<typeof reserveFromCartSchema>;
 export type UpdateCartItemInput = z.infer<typeof updateCartItemSchema>;
 export type ConfirmOrderInput = z.infer<typeof confirmOrderSchema>;
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;

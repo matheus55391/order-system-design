@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { hash, compare } from "bcryptjs";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import type { RegisterInput } from "@repo/shared";
 import { JwtService } from "../../common/auth/jwt.service";
 import { EmailService } from "../../infrastructure/email/email.service";
@@ -14,6 +14,10 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 
 @Injectable()
 export class AuthService {
+  private readonly refreshExpiresMs = this.parseDurationMs(
+    process.env.JWT_REFRESH_EXPIRES_IN ?? "7d",
+  );
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -68,6 +72,37 @@ export class AuthService {
     });
 
     return this.buildAuthResponse(user);
+  }
+
+  async refresh(refreshToken: string) {
+    const tokenHash = this.hashToken(refreshToken);
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: { include: { tenant: true } } },
+    });
+
+    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+      throw new UnauthorizedException("Sessão expirada, faça login novamente");
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: { revokedAt: new Date() },
+    });
+
+    return this.buildAuthResponse(stored.user);
+  }
+
+  async logout(refreshToken: string) {
+    const tokenHash = this.hashToken(refreshToken);
+
+    await this.prisma.refreshToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { success: true };
   }
 
   async forgotPassword(email: string) {
@@ -142,21 +177,10 @@ export class AuthService {
       throw new NotFoundException("Usuário não encontrado");
     }
 
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      tenantId: user.tenantId,
-      tenant: {
-        id: user.tenant.id,
-        name: user.tenant.name,
-        slug: user.tenant.slug,
-      },
-    };
+    return this.formatUser(user);
   }
 
-  private buildAuthResponse(
+  private async buildAuthResponse(
     user: {
       id: string;
       email: string;
@@ -173,20 +197,73 @@ export class AuthService {
       email: user.email,
     });
 
+    const refreshToken = await this.createRefreshToken(user.id);
+
     return {
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        tenantId: user.tenantId,
-        tenant: {
-          id: user.tenant.id,
-          name: user.tenant.name,
-          slug: user.tenant.slug,
-        },
+      refreshToken,
+      user: this.formatUser(user),
+    };
+  }
+
+  private formatUser(user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    tenantId: string;
+    tenant: { id: string; name: string; slug: string };
+  }) {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId,
+      tenant: {
+        id: user.tenant.id,
+        name: user.tenant.name,
+        slug: user.tenant.slug,
       },
     };
+  }
+
+  private async createRefreshToken(userId: string) {
+    const token = randomBytes(48).toString("hex");
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId,
+        tokenHash: this.hashToken(token),
+        expiresAt: new Date(Date.now() + this.refreshExpiresMs),
+      },
+    });
+
+    return token;
+  }
+
+  private hashToken(token: string) {
+    return createHash("sha256").update(token).digest("hex");
+  }
+
+  private parseDurationMs(value: string): number {
+    const match = /^(\d+)([smhd])$/.exec(value);
+    if (!match) return 7 * 24 * 60 * 60 * 1000;
+
+    const amount = Number(match[1]);
+    const unit = match[2];
+
+    switch (unit) {
+      case "s":
+        return amount * 1000;
+      case "m":
+        return amount * 60 * 1000;
+      case "h":
+        return amount * 60 * 60 * 1000;
+      case "d":
+        return amount * 24 * 60 * 60 * 1000;
+      default:
+        return 7 * 24 * 60 * 60 * 1000;
+    }
   }
 }

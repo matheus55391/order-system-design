@@ -10,6 +10,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "check-types": "turbo run check-types",
     "docker:up": "docker compose up -d",
+    "minio:setup": "bash scripts/minio-setup.sh",
     "docker:down": "docker compose down",
     "db:generate": "pnpm --filter @repo/database db:generate",
     "db:migrate": "pnpm --filter @repo/database db:migrate",

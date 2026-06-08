@@ -35,6 +35,7 @@ export class CartController {
       user.userId,
       input.variantId,
       input.quantity,
+      input.priceTenantId,
     );
   }
 

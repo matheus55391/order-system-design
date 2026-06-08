@@ -4,8 +4,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ReservationStatus } from "@repo/database";
+import { randomUUID } from "crypto";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { RabbitMqService } from "../../infrastructure/rabbitmq/rabbitmq.service";
+import { CartService } from "../cart/cart.service";
 import { InventoryService } from "../inventory/inventory.service";
 
 @Injectable()
@@ -18,47 +20,93 @@ export class ReservationsService {
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
     private readonly rabbitMq: RabbitMqService,
+    private readonly cartService: CartService,
   ) {}
+
+  async reserveFromCart(
+    tenantId: string,
+    userId: string,
+    cartItemIds?: string[],
+  ) {
+    const cart = await this.cartService.getCart(tenantId, userId);
+    const items = cartItemIds?.length
+      ? cart.items.filter((i) => cartItemIds.includes(i.id))
+      : cart.items;
+
+    if (items.length === 0) {
+      throw new BadRequestException("Carrinho vazio ou itens inválidos");
+    }
+
+    const reservations = [];
+
+    for (const item of items) {
+      const reservation = await this.createReservation({
+        tenantId,
+        userId,
+        variantId: item.variant.id,
+        quantity: item.quantity,
+        priceTenantId: item.priceTenantId,
+      });
+      reservations.push(reservation);
+    }
+
+    await this.cartService.removeItems(
+      tenantId,
+      userId,
+      items.map((i) => i.id),
+    );
+
+    return reservations;
+  }
 
   async createReservation(input: {
     tenantId: string;
     userId: string;
     variantId: string;
     quantity: number;
+    priceTenantId: string;
   }) {
     const price = await this.prisma.tenantProductPrice.findUnique({
       where: {
         tenantId_variantId: {
-          tenantId: input.tenantId,
+          tenantId: input.priceTenantId,
           variantId: input.variantId,
         },
       },
     });
 
     if (!price) {
-      throw new NotFoundException("Produto não disponível para este tenant");
+      throw new NotFoundException("Produto não disponível nesta loja");
     }
 
-    await this.inventoryService.reserveStock(input.variantId, input.quantity);
-
+    const reservationId = randomUUID();
     const expiresAt = new Date(Date.now() + this.ttlSeconds * 1000);
 
     try {
+      await this.inventoryService.reserveStock(
+        input.variantId,
+        input.quantity,
+        {
+          tenantId: input.tenantId,
+          userId: input.userId,
+          reservationId,
+          priceTenantId: input.priceTenantId,
+        },
+      );
+
       const reservation = await this.prisma.reservation.create({
         data: {
+          id: reservationId,
           tenantId: input.tenantId,
           userId: input.userId,
           variantId: input.variantId,
           quantity: input.quantity,
+          priceTenantId: input.priceTenantId,
           expiresAt,
         },
         include: {
-          variant: {
-            include: {
-              product: true,
-              inventory: true,
-            },
-          },
+          variant: { include: { product: true, inventory: true } },
+          priceTenant: { select: { id: true, name: true, slug: true } },
         },
       });
 
@@ -67,14 +115,44 @@ export class ReservationsService {
         this.ttlSeconds * 1000,
       );
 
-      return reservation;
+      return this.formatReservation(reservation);
     } catch (error) {
-      await this.inventoryService.releaseReservedStock(
-        input.variantId,
-        input.quantity,
-      );
+      await this.prisma.reservation
+        .delete({ where: { id: reservationId } })
+        .catch(() => undefined);
       throw error;
     }
+  }
+
+  async getActiveReservations(tenantId: string, userId: string) {
+    await this.expireStaleReservations(tenantId, userId);
+
+    const reservations = await this.prisma.reservation.findMany({
+      where: { tenantId, userId, status: ReservationStatus.ACTIVE },
+      include: {
+        variant: { include: { product: true } },
+        priceTenant: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const prices = await this.prisma.tenantProductPrice.findMany({
+      where: {
+        tenantId: { in: reservations.map((r) => r.priceTenantId) },
+        variantId: { in: reservations.map((r) => r.variantId) },
+      },
+    });
+
+    const priceMap = new Map(
+      prices.map((p) => [`${p.tenantId}:${p.variantId}`, p.price]),
+    );
+
+    return reservations.map((r) => ({
+      ...this.formatReservation(r),
+      unitPrice: Number(
+        priceMap.get(`${r.priceTenantId}:${r.variantId}`) ?? 0,
+      ),
+    }));
   }
 
   async expireReservation(reservationId: string): Promise<void> {
@@ -86,32 +164,22 @@ export class ReservationsService {
       return;
     }
 
-    if (reservation.expiresAt > new Date()) {
-      return;
-    }
+    if (reservation.expiresAt > new Date()) return;
 
-    await this.prisma.$transaction(async (tx) => {
-      const current = await tx.reservation.findUnique({
-        where: { id: reservationId },
-      });
-
-      if (!current || current.status !== ReservationStatus.ACTIVE) {
-        return;
-      }
-
-      await tx.reservation.update({
-        where: { id: reservationId },
-        data: { status: ReservationStatus.EXPIRED },
-      });
-
-      await tx.cartItem.deleteMany({
-        where: { reservationId },
-      });
+    await this.prisma.reservation.update({
+      where: { id: reservationId },
+      data: { status: ReservationStatus.EXPIRED },
     });
 
     await this.inventoryService.releaseReservedStock(
       reservation.variantId,
       reservation.quantity,
+      {
+        tenantId: reservation.tenantId,
+        userId: reservation.userId,
+        reservationId: reservation.id,
+        priceTenantId: reservation.priceTenantId,
+      },
     );
   }
 
@@ -124,50 +192,26 @@ export class ReservationsService {
       where: { id: reservationId, tenantId, userId },
     });
 
-    if (!reservation) {
-      throw new NotFoundException("Reserva não encontrada");
-    }
-
+    if (!reservation) throw new NotFoundException("Reserva não encontrada");
     if (reservation.status !== ReservationStatus.ACTIVE) {
       throw new BadRequestException("Reserva não está ativa");
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.reservation.update({
-        where: { id: reservationId },
-        data: { status: ReservationStatus.CANCELED },
-      });
-
-      await tx.cartItem.deleteMany({
-        where: { reservationId },
-      });
+    await this.prisma.reservation.update({
+      where: { id: reservationId },
+      data: { status: ReservationStatus.CANCELED },
     });
 
     await this.inventoryService.releaseReservedStock(
       reservation.variantId,
       reservation.quantity,
+      {
+        tenantId: reservation.tenantId,
+        userId: reservation.userId,
+        reservationId: reservation.id,
+        priceTenantId: reservation.priceTenantId,
+      },
     );
-  }
-
-  async getActiveReservationsForUser(tenantId: string, userId: string) {
-    await this.expireStaleReservations(tenantId, userId);
-
-    return this.prisma.reservation.findMany({
-      where: {
-        tenantId,
-        userId,
-        status: ReservationStatus.ACTIVE,
-      },
-      include: {
-        variant: {
-          include: {
-            product: true,
-            inventory: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
   }
 
   private async expireStaleReservations(tenantId: string, userId: string) {
@@ -180,8 +224,43 @@ export class ReservationsService {
       },
     });
 
-    for (const reservation of stale) {
-      await this.expireReservation(reservation.id);
+    for (const r of stale) {
+      await this.expireReservation(r.id);
     }
+  }
+
+  private formatReservation(
+    reservation: {
+      id: string;
+      quantity: number;
+      status: string;
+      expiresAt: Date;
+      priceTenantId: string;
+      variant: {
+        id: string;
+        sku: string;
+        size: string | null;
+        color: string | null;
+        product: { name: string; imageUrl: string | null };
+      };
+      priceTenant: { id: string; name: string; slug: string };
+    },
+  ) {
+    return {
+      id: reservation.id,
+      quantity: reservation.quantity,
+      status: reservation.status,
+      expiresAt: reservation.expiresAt,
+      priceTenantId: reservation.priceTenantId,
+      priceTenant: reservation.priceTenant,
+      variant: {
+        id: reservation.variant.id,
+        sku: reservation.variant.sku,
+        size: reservation.variant.size,
+        color: reservation.variant.color,
+        productName: reservation.variant.product.name,
+        productImageUrl: reservation.variant.product.imageUrl,
+      },
+    };
   }
 }

@@ -7,16 +7,23 @@ import { useAuthStore } from "@/store";
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
+  const refreshToken = useAuthStore((state) => state.refreshToken);
+  const sessionReady = useAuthStore((state) => state.sessionReady);
 
   useEffect(() => {
-    if (!token) {
+    if (!sessionReady) return;
+    if (!token && !refreshToken) {
       router.replace("/login");
     }
-  }, [token, router]);
+  }, [token, refreshToken, sessionReady, router]);
+
+  if (!sessionReady) {
+    return null;
+  }
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] text-zinc-500">
         Redirecionando...
       </div>
     );

@@ -1,16 +1,15 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Receipt } from "lucide-react";
+import Link from "next/link";
+import { useMemo } from "react";
+import { DashCard } from "@/components/dashboard/dash-card";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store";
+import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
   PENDING: "Pendente",
@@ -19,14 +18,11 @@ const statusLabels: Record<string, string> = {
   EXPIRED: "Expirado",
 };
 
-const statusVariants: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  PENDING: "outline",
-  CONFIRMED: "default",
-  CANCELED: "destructive",
-  EXPIRED: "secondary",
+const statusStyles: Record<string, string> = {
+  PENDING: "bg-zinc-800 text-zinc-400",
+  CONFIRMED: "bg-orange-500/10 text-orange-400",
+  CANCELED: "bg-red-500/10 text-red-400",
+  EXPIRED: "bg-zinc-800 text-zinc-500",
 };
 
 export default function OrdersPage() {
@@ -37,64 +33,104 @@ export default function OrdersPage() {
     queryFn: () => api.getOrders(token),
   });
 
+  const stats = useMemo(() => {
+    const list = orders ?? [];
+    const confirmed = list.filter((o) => o.status === "CONFIRMED");
+    const totalRevenue = confirmed.reduce((s, o) => s + o.total, 0);
+    return {
+      total: list.length,
+      confirmed: confirmed.length,
+      revenue: totalRevenue,
+    };
+  }, [orders]);
+
   if (isLoading) {
-    return <p className="text-muted-foreground">Carregando pedidos...</p>;
+    return <p className="text-zinc-500">Carregando pedidos...</p>;
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Pedidos</h1>
-        <p className="text-muted-foreground">
-          Pedidos imutáveis após criação — histórico transacional
-        </p>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Pedidos"
+        endpoint="GET /orders"
+        description="Histórico transacional — imutáveis após criação"
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Total" value={String(stats.total)} />
+        <StatCard
+          label="Confirmados"
+          value={String(stats.confirmed)}
+          trend="+ok"
+          trendUp
+        />
+        <StatCard
+          label="Receita"
+          value={stats.revenue.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })}
+        />
       </div>
 
-      {orders?.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Nenhum pedido encontrado.
-          </CardContent>
-        </Card>
+      {(orders?.length ?? 0) === 0 ? (
+        <DashCard>
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <p className="text-zinc-500">Nenhum pedido ainda</p>
+            <Link
+              href="/store"
+              className="text-sm font-medium text-orange-400 hover:underline"
+            >
+              Começar compra
+            </Link>
+          </div>
+        </DashCard>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {orders?.map((order) => (
-            <Card key={order.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <CardTitle className="font-mono text-base">
-                      {order.id.slice(0, 8)}...
-                    </CardTitle>
-                    <CardDescription>
-                      {new Date(order.createdAt).toLocaleString("pt-BR")}
-                    </CardDescription>
+            <DashCard key={order.id}>
+              <div className="flex flex-col gap-4 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-zinc-800">
+                      <Receipt className="size-5 text-zinc-400" />
+                    </div>
+                    <div>
+                      <p className="font-mono text-sm text-white">
+                        {order.id.slice(0, 8)}…
+                      </p>
+                      <p className="text-xs text-zinc-600">
+                        {new Date(order.createdAt).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge variant={statusVariants[order.status] ?? "outline"}>
-                      {statusLabels[order.status] ?? order.status}
-                    </Badge>
-                    <p className="font-semibold">
-                      {order.total.toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </p>
-                  </div>
+                  <span
+                    className={cn(
+                      "rounded-md px-2 py-0.5 text-xs font-medium",
+                      statusStyles[order.status] ?? statusStyles.PENDING,
+                    )}
+                  >
+                    {statusLabels[order.status] ?? order.status}
+                  </span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-col gap-2 text-sm">
+
+                <p className="text-xl font-semibold text-white">
+                  {order.total.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </p>
+
+                <ul className="flex flex-col gap-2 border-t border-zinc-800 pt-3">
                   {order.items.map((item) => (
                     <li
                       key={item.id}
-                      className="flex items-center justify-between border-b pb-2 last:border-0"
+                      className="flex items-center justify-between text-xs"
                     >
-                      <span>
-                        {item.variant.productName} ({item.variant.sku}) ×{" "}
-                        {item.quantity}
+                      <span className="text-zinc-400">
+                        {item.variant.productName} × {item.quantity}
                       </span>
-                      <span className="text-muted-foreground">
+                      <span className="text-zinc-600">
                         {item.unitPrice.toLocaleString("pt-BR", {
                           style: "currency",
                           currency: "BRL",
@@ -103,8 +139,8 @@ export default function OrdersPage() {
                     </li>
                   ))}
                 </ul>
-              </CardContent>
-            </Card>
+              </div>
+            </DashCard>
           ))}
         </div>
       )}
