@@ -48,6 +48,23 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      - ./packages/database/seed-assets:/assets:ro
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 order_system order_system; do sleep 1; done;
+      mc mb local/products --ignore-existing;
+      mc anonymous set download local/products;
+      mc cp /assets/default-product.webp local/products/default-product.webp;
+      echo 'MinIO: bucket products + default-product.webp prontos';
+      "
+    restart: "no"
+
   mailhog:
     image: mailhog/mailhog:latest
     restart: unless-stopped
