@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Clock, Lock, Minus, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useMemo, useState } from "react";
@@ -17,12 +17,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTenantId } from "@/hooks/use-tenant-id";
+import { ORDERS_TAB_PARAM } from "@/lib/order-status";
 import { useCancelReservationMutation } from "@/query/cancel-reservation.mutation";
-import { useConfirmOrderMutation } from "@/query/confirm-order.mutation";
+import { useCheckoutFromCartMutation } from "@/query/checkout-from-cart.mutation";
 import { useGetCartQuery } from "@/query/get-cart.query";
 import { useGetReservationsQuery } from "@/query/get-reservations.query";
 import { useRemoveCartItemMutation } from "@/query/remove-cart-item.mutation";
-import { useReserveFromCartMutation } from "@/query/reserve-from-cart.mutation";
 import { useUpdateCartQuantityMutation } from "@/query/update-cart-quantity.mutation";
 import { useAuthStore } from "@/store";
 
@@ -137,12 +137,11 @@ export default function StoreCartPage({
 
   const removeCartItem = useRemoveCartItemMutation(tenantId, slug);
   const updateQuantity = useUpdateCartQuantityMutation(tenantId, slug);
-  const reserveFromCart = useReserveFromCartMutation(tenantId, slug);
   const cancelReservation = useCancelReservationMutation(tenantId, slug);
-  const confirmOrder = useConfirmOrderMutation({
+  const checkout = useCheckoutFromCartMutation({
     onConfirmed: () => {
       setConfirmDialogOpen(false);
-      router.push("/orders");
+      router.push(`/orders?${ORDERS_TAB_PARAM}=outgoing`);
     },
   });
 
@@ -329,42 +328,22 @@ export default function StoreCartPage({
                 <p className="text-2xl font-semibold text-white">
                   {formatCurrency(subtotal)}
                 </p>
-                {cartCount > 0 && resCount === 0 && (
+                {cartCount > 0 && (
                   <p className="mt-1 text-xs text-zinc-600">
-                    Reserve o estoque para confirmar o pedido
+                    Ao confirmar, o estoque é reservado e o pedido é criado
                   </p>
                 )}
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row">
-                {cartCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!cart?.store.id) return;
-                      reserveFromCart.mutate(cart.store.id);
-                    }}
-                    disabled={reserveFromCart.isPending}
-                    className="flex h-10 items-center justify-center gap-2 rounded-lg border border-orange-500/40 px-5 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:opacity-50"
-                  >
-                    <Lock className="size-4" />
-                    {reserveFromCart.isPending
-                      ? "Reservando..."
-                      : "Reservar estoque"}
-                  </button>
-                )}
-                {resCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDialogOpen(true)}
-                    disabled={confirmOrder.isPending}
-                    className="flex h-10 items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 text-sm font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
-                  >
-                    Confirmar pedido
-                    <ArrowRight className="size-4" />
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmDialogOpen(true)}
+                disabled={checkout.isPending}
+                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 text-sm font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
+              >
+                Confirmar pedido
+                <ArrowRight className="size-4" />
+              </button>
             </div>
           </div>
         </DashCard>
@@ -378,8 +357,8 @@ export default function StoreCartPage({
             </DialogTitle>
             <DialogDescription>
               Este é um ambiente de estudo. Não há cobrança real nem gateway de
-              pagamento — ao confirmar, o pedido será criado e o estoque debitado
-              como se a compra tivesse sido paga.
+              pagamento — ao confirmar, o estoque é reservado, o pedido é criado e
+              o saldo é debitado como se a compra tivesse sido paga.
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm text-zinc-400">
@@ -402,19 +381,19 @@ export default function StoreCartPage({
             </Button>
             <Button
               type="button"
-              disabled={confirmOrder.isPending}
+              disabled={checkout.isPending || !cart?.store.id}
               onClick={() =>
-                confirmOrder.mutate({
-                  reservationIds: storeReservations.map((r) => r.id),
+                checkout.mutate({
+                  priceTenantId: cart!.store.id,
+                  existingReservationIds: storeReservations.map((r) => r.id),
+                  reserveCart: cartCount > 0,
                   tenantId,
                   storeSlug: slug,
                 })
               }
               className="bg-orange-500 text-black hover:bg-orange-400"
             >
-              {confirmOrder.isPending
-                ? "Confirmando..."
-                : "Sim, confirmar compra"}
+              {checkout.isPending ? "Confirmando..." : "Sim, confirmar compra"}
             </Button>
           </DialogFooter>
         </DialogContent>

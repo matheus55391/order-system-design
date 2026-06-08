@@ -9,6 +9,7 @@ import {
   CacheService,
   CACHE_TTL,
 } from "../../infrastructure/redis/cache.service";
+import { sanitizeProductSearchTerm } from "../../common/utils/product-search.util";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { InventoryService } from "../inventory/inventory.service";
 
@@ -52,18 +53,29 @@ export class CatalogService {
       : allStores;
   }
 
-  async listProducts(priceTenantId: string) {
-    const key = CacheKeys.catalogProducts(priceTenantId);
-    const cached =
-      await this.cache.get<Awaited<ReturnType<CatalogService["_fetchProducts"]>>>(key);
-    if (cached) return cached;
+  async listProducts(priceTenantId: string, search?: string) {
+    const term = search?.trim();
+    if (!term) {
+      const key = CacheKeys.catalogProducts(priceTenantId);
+      const cached =
+        await this.cache.get<
+          Awaited<ReturnType<CatalogService["_fetchProducts"]>>
+        >(key);
+      if (cached) return cached;
 
-    const result = await this._fetchProducts(priceTenantId);
-    await this.cache.set(key, result, CACHE_TTL.CATALOG_PRODUCTS);
-    return result;
+      const result = await this._fetchProducts(priceTenantId);
+      await this.cache.set(key, result, CACHE_TTL.CATALOG_PRODUCTS);
+      return result;
+    }
+
+    return this._fetchProducts(priceTenantId, term);
   }
 
-  async listProductsByStoreSlug(slug: string, buyerTenantId: string) {
+  async listProductsByStoreSlug(
+    slug: string,
+    buyerTenantId: string,
+    search?: string,
+  ) {
     const tenant = await this.prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) throw new NotFoundException("Loja não encontrada");
     if (tenant.id === buyerTenantId) {
@@ -72,18 +84,30 @@ export class CatalogService {
       );
     }
 
-    const key = CacheKeys.catalogStoreProducts(tenant.id, buyerTenantId);
-    const cached = await this.cache.get<{ store: { id: string; name: string; slug: string }; products: unknown[] }>(key);
-    if (cached) return cached;
+    const term = search?.trim();
+    if (!term) {
+      const key = CacheKeys.catalogStoreProducts(tenant.id, buyerTenantId);
+      const cached = await this.cache.get<{
+        store: { id: string; name: string; slug: string };
+        products: unknown[];
+      }>(key);
+      if (cached) return cached;
 
-    const products = await this.listProducts(tenant.id);
-    const result = {
+      const products = await this._fetchProducts(tenant.id);
+      const result = {
+        store: { id: tenant.id, name: tenant.name, slug: tenant.slug },
+        products,
+      };
+
+      await this.cache.set(key, result, CACHE_TTL.CATALOG_PRODUCTS);
+      return result;
+    }
+
+    const products = await this._fetchProducts(tenant.id, term);
+    return {
       store: { id: tenant.id, name: tenant.name, slug: tenant.slug },
       products,
     };
-
-    await this.cache.set(key, result, CACHE_TTL.CATALOG_PRODUCTS);
-    return result;
   }
 
   async getProduct(priceTenantId: string, productId: string) {
@@ -107,8 +131,9 @@ export class CatalogService {
     return result;
   }
 
-  private async _fetchProducts(priceTenantId: string) {
+  private async _fetchProducts(priceTenantId: string, search?: string) {
     const products = await this.prisma.product.findMany({
+      where: this.buildProductWhere(priceTenantId, search),
       include: {
         variants: {
           include: {
@@ -117,10 +142,71 @@ export class CatalogService {
           },
         },
       },
-      orderBy: { name: "asc" },
+      orderBy: this.buildProductOrderBy(search),
     });
 
     return this.mapProducts(products);
+  }
+
+  private buildProductWhere(
+    priceTenantId: string,
+    search?: string,
+  ): Prisma.ProductWhereInput {
+    const tenantFilter: Prisma.ProductWhereInput = {
+      variants: {
+        some: {
+          tenantPrices: { some: { tenantId: priceTenantId } },
+        },
+      },
+    };
+
+    const tsQuery = sanitizeProductSearchTerm(search ?? "");
+    if (!tsQuery) return tenantFilter;
+
+    return {
+      AND: [
+        tenantFilter,
+        {
+          OR: [
+            { name: { search: tsQuery } },
+            { description: { search: tsQuery } },
+            {
+              variants: {
+                some: {
+                  AND: [
+                    {
+                      OR: [
+                        { sku: { search: tsQuery } },
+                        { size: { search: tsQuery } },
+                        { color: { search: tsQuery } },
+                      ],
+                    },
+                    {
+                      tenantPrices: { some: { tenantId: priceTenantId } },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  private buildProductOrderBy(
+    search?: string,
+  ): Prisma.ProductOrderByWithRelationInput {
+    const tsQuery = sanitizeProductSearchTerm(search ?? "");
+    if (!tsQuery) return { name: "asc" };
+
+    return {
+      _relevance: {
+        fields: ["name", "description"],
+        search: tsQuery,
+        sort: "desc",
+      },
+    };
   }
 
   private async _fetchProduct(priceTenantId: string, productId: string) {

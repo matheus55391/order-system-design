@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -18,6 +19,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import {
@@ -51,9 +53,13 @@ export class InventoryManagementController {
 
   @Get("products")
   @ApiOperation({ summary: "Listar produtos da loja com estoque e preços" })
+  @ApiQuery({ name: "q", required: false, description: "Busca full-text" })
   @ApiOkResponse({ type: ProductDto, isArray: true })
-  listProducts(@CurrentUser() user: TenantContext) {
-    return this.inventoryManagementService.listProducts(user.tenantId);
+  listProducts(
+    @CurrentUser() user: TenantContext,
+    @Query("q") q?: string,
+  ) {
+    return this.inventoryManagementService.listProducts(user.tenantId, q);
   }
 
   @Get("products/:id")

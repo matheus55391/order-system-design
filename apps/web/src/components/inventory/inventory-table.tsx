@@ -32,8 +32,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { InventoryProductDto } from "@repo/shared";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { queryKeys } from "@/lib/query-keys";
+import { useListInventoryProductsQuery } from "@/query/list-inventory-products.query";
 import { revalidateInBackground } from "@/lib/query-cache";
 import { cn } from "@/lib/utils";
 
@@ -113,38 +115,28 @@ function SortableHead({
 }
 
 export function InventoryTable({
-  products,
-  isPending,
   defaultNewOpen = false,
 }: {
-  products: InventoryProductDto[];
-  isPending?: boolean;
   defaultNewOpen?: boolean;
 }) {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<SortKey>("productName");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [newDialogOpen, setNewDialogOpen] = useState(defaultNewOpen);
 
+  const { data: products = [], isPending } = useListInventoryProductsQuery(
+    tenantId,
+    debouncedSearch,
+  );
+
   const rows = useMemo(() => flattenProducts(products), [products]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (row) =>
-        row.productName.toLowerCase().includes(q) ||
-        row.sku.toLowerCase().includes(q) ||
-        row.size?.toLowerCase().includes(q) ||
-        row.color?.toLowerCase().includes(q),
-    );
-  }, [rows, search]);
-
   const sorted = useMemo(() => {
-    const list = [...filtered];
+    const list = [...rows];
     list.sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
@@ -158,7 +150,7 @@ export function InventoryTable({
         : Number(bv) - Number(av);
     });
     return list;
-  }, [filtered, sortKey, sortDir]);
+  }, [rows, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);

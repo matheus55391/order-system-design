@@ -2,12 +2,13 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { use, useMemo, useState } from "react";
+import { use, useState } from "react";
 import { ProductCatalog } from "@/components/catalog/product-catalog";
 import { ViewToggle } from "@/components/catalog/view-toggle";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SearchInput } from "@/components/dashboard/search-input";
 import { useCatalogView } from "@/hooks/use-catalog-view";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { useAddToCartMutation } from "@/query/add-to-cart.mutation";
 import { useGetStoreProductsQuery } from "@/query/get-store-products.query";
@@ -23,22 +24,16 @@ export default function StoreCatalogPage({
   const ownSlug = useAuthStore((s) => s.user?.tenant.slug);
   const isOwnStore = ownSlug === slug;
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { view, setView, ready } = useCatalogView();
 
-  const { data, isPending } = useGetStoreProductsQuery(slug, !isOwnStore);
+  const { data, isPending } = useGetStoreProductsQuery(
+    slug,
+    !isOwnStore,
+    debouncedSearch,
+  );
   const addToCart = useAddToCartMutation();
-
-  const filtered = useMemo(() => {
-    if (!data?.products) return [];
-    const q = search.toLowerCase();
-    if (!q) return data.products;
-    return data.products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.variants.some((v) => v.sku.toLowerCase().includes(q)),
-    );
-  }, [data, search]);
 
   if (isOwnStore) {
     return (
@@ -103,7 +98,7 @@ export default function StoreCatalogPage({
       </div>
 
       <ProductCatalog
-        products={filtered}
+        products={data?.products ?? []}
         view={view}
         quantities={quantities}
         onQuantityChange={(variantId, qty) =>

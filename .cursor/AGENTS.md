@@ -11,8 +11,10 @@ Plataforma B2B multi-tenant com concorrência de estoque. Detalhes em `.cursor/r
 ## Comandos
 
 ```bash
-pnpm docker:up && pnpm minio:setup && pnpm db:setup && pnpm dev
+pnpm docker:dev:up && pnpm minio:setup && pnpm db:setup && pnpm dev
 ```
+
+Prod simulado (stack Docker completa): `pnpm docker:dev:down && pnpm docker:prod:up`
 
 Demo: `loja-alfa@demo.com` / `password123` (comprar na Loja Beta via marketplace)
 
@@ -35,5 +37,5 @@ Doc completa: `apps/api/README.md`
 | **Fullstack** | shared → API module → `lib/api.ts` → page web |
 | **Backend** | Guards JWT, `@CurrentUser()`, `InventoryService` para estoque, `CacheService` para cache |
 | **Frontend** | `src/app`, `@/store`, `@repo/shared`, `@repo/shared/data-access`, TanStack Query |
-| **Database** | `packages/database/prisma`, `pnpm db:push` / `db:seed` |
+| **Database** | `packages/database/prisma`, `pnpm db:setup` / `db:reset` |
 | **Reviewer** | tenant_id em toda query, estoque só via lock, pedidos imutáveis |

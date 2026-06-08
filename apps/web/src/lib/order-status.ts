@@ -1,5 +1,13 @@
 export type OrdersViewMode = "incoming" | "outgoing";
 
+export const ORDERS_TAB_PARAM = "tab";
+
+export function parseOrdersViewMode(
+  value: string | null | undefined,
+): OrdersViewMode {
+  return value === "outgoing" || value === "feitos" ? "outgoing" : "incoming";
+}
+
 export const orderStatusLabels: Record<
   string,
   { incoming: string; outgoing: string }

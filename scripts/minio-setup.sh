@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONTAINER="${MINIO_CONTAINER:-order-system-minio}"
+# Container do compose dev (project order-system-dev → order-system-dev-minio-1)
+CONTAINER="${MINIO_CONTAINER:-order-system-dev-minio-1}"
 MINIO_USER="${MINIO_ROOT_USER:-order_system}"
 MINIO_PASS="${MINIO_ROOT_PASSWORD:-order_system}"
 

@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+.turbo
+.git
+.env
+.env.*
+!.env.prod.example
+**/*.md
+.cursor
+.pnpm-store
+packages/database/src/generated
