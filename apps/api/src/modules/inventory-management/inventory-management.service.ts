@@ -29,8 +29,8 @@ export class InventoryManagementService {
     private readonly cache: CacheService,
   ) {}
 
-  listProducts(tenantId: string) {
-    return this.catalogService.listProducts(tenantId);
+  listProducts(tenantId: string, search?: string) {
+    return this.catalogService.listProducts(tenantId, search);
   }
 
   async getProduct(tenantId: string, productId: string) {

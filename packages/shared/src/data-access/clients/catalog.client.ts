@@ -4,14 +4,15 @@ import type {
   StoreListItemDto,
 } from "../../contracts";
 import type { HttpTransport } from "../http";
+import { withSearchQuery } from "../search-query";
 
 export class CatalogClient {
   constructor(private readonly http: HttpTransport) {}
 
-  getProducts() {
+  getProducts(search?: string) {
     return this.http.request<ProductDto[]>({
       method: "GET",
-      url: "/catalog/products",
+      url: withSearchQuery("/catalog/products", search),
     });
   }
 
@@ -22,10 +23,10 @@ export class CatalogClient {
     });
   }
 
-  getStoreProducts(slug: string) {
+  getStoreProducts(slug: string, search?: string) {
     return this.http.request<StoreCatalogResponseDto>({
       method: "GET",
-      url: `/catalog/stores/${slug}/products`,
+      url: withSearchQuery(`/catalog/stores/${slug}/products`, search),
     });
   }
 

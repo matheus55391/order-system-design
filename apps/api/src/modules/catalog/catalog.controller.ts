@@ -1,9 +1,17 @@
-import { Controller, Get, NotFoundException, Param, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import type { TenantContext } from "@repo/shared";
@@ -33,19 +41,29 @@ export class CatalogController {
   @Get("stores/:slug/products")
   @ApiOperation({ summary: "Catálogo de uma loja por slug" })
   @ApiParam({ name: "slug", example: "globex" })
+  @ApiQuery({ name: "q", required: false, description: "Busca full-text" })
   @ApiOkResponse({ type: StoreCatalogResponseDto })
   listStoreProducts(
     @CurrentUser() user: TenantContext,
     @Param("slug") slug: string,
+    @Query("q") q?: string,
   ) {
-    return this.catalogService.listProductsByStoreSlug(slug, user.tenantId);
+    return this.catalogService.listProductsByStoreSlug(
+      slug,
+      user.tenantId,
+      q,
+    );
   }
 
   @Get("products")
   @ApiOperation({ summary: "Catálogo da minha loja" })
+  @ApiQuery({ name: "q", required: false, description: "Busca full-text" })
   @ApiOkResponse({ type: ProductDto, isArray: true })
-  listProducts(@CurrentUser() user: TenantContext) {
-    return this.catalogService.listProducts(user.tenantId);
+  listProducts(
+    @CurrentUser() user: TenantContext,
+    @Query("q") q?: string,
+  ) {
+    return this.catalogService.listProducts(user.tenantId, q);
   }
 
   @Get("products/:id")

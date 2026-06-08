@@ -4,23 +4,11 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { useTenantId } from "@/hooks/use-tenant-id";
-import { useListInventoryProductsQuery } from "@/query/list-inventory-products.query";
-
 function InventoryContent() {
   const searchParams = useSearchParams();
   const openNew = searchParams.get("new") === "1";
-  const tenantId = useTenantId();
 
-  const { data: products, isPending } = useListInventoryProductsQuery(tenantId);
-
-  return (
-    <InventoryTable
-      products={products ?? []}
-      isPending={isPending && !products}
-      defaultNewOpen={openNew}
-    />
-  );
+  return <InventoryTable defaultNewOpen={openNew} />;
 }
 
 export default function InventoryPage() {

@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { OrderDetailDialog } from "@/components/orders/order-detail-dialog";
 import { OrdersTable } from "@/components/orders/orders-table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTenantId } from "@/hooks/use-tenant-id";
-import type { OrdersViewMode } from "@/lib/order-status";
+import {
+  ORDERS_TAB_PARAM,
+  parseOrdersViewMode,
+  type OrdersViewMode,
+} from "@/lib/order-status";
 import { useGetIncomingOrdersQuery } from "@/query/get-incoming-orders.query";
 import { useGetOrdersQuery } from "@/query/get-orders.query";
 import type { OrderResponseDto } from "@repo/shared";
@@ -17,9 +22,12 @@ const tabs: { id: OrdersViewMode; label: string }[] = [
   { id: "outgoing", label: "Feitos" },
 ];
 
-export default function OrdersPage() {
+function OrdersContent() {
   const tenantId = useTenantId()!;
-  const [mode, setMode] = useState<OrdersViewMode>("incoming");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const mode = parseOrdersViewMode(searchParams.get(ORDERS_TAB_PARAM));
   const [selectedOrder, setSelectedOrder] = useState<OrderResponseDto | null>(
     null,
   );
@@ -48,6 +56,19 @@ export default function OrdersPage() {
       revenue,
     };
   }, [mode, incomingOrders, outgoingOrders]);
+
+  const setMode = (next: OrdersViewMode) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "incoming") {
+      params.delete(ORDERS_TAB_PARAM);
+    } else {
+      params.set(ORDERS_TAB_PARAM, next);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
 
   const openOrder = (order: OrderResponseDto) => {
     setSelectedOrder(order);
@@ -106,5 +127,13 @@ export default function OrdersPage() {
         onOrderUpdated={(updated) => setSelectedOrder(updated)}
       />
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Carregando...</p>}>
+      <OrdersContent />
+    </Suspense>
   );
 }

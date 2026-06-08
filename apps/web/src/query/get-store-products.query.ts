@@ -5,10 +5,13 @@ import { queryKeys } from "@/lib/query-keys";
 export function useGetStoreProductsQuery(
   slug: string,
   enabled = true,
+  search?: string,
 ) {
+  const term = search?.trim() || undefined;
+
   return useQuery({
-    queryKey: queryKeys.storeProducts(slug),
-    queryFn: () => catalogService.getStoreProducts(slug),
+    queryKey: queryKeys.storeProducts(slug, term),
+    queryFn: () => catalogService.getStoreProducts(slug, term),
     enabled,
   });
 }

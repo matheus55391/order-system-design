@@ -6,14 +6,15 @@ import type {
   UpdateVariantRequestDto,
 } from "../../contracts";
 import type { HttpTransport } from "../http";
+import { withSearchQuery } from "../search-query";
 
 export class InventoryClient {
   constructor(private readonly http: HttpTransport) {}
 
-  listProducts() {
+  listProducts(search?: string) {
     return this.http.request<InventoryProductDto[]>({
       method: "GET",
-      url: "/inventory/products",
+      url: withSearchQuery("/inventory/products", search),
     });
   }
 

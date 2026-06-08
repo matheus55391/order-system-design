@@ -9,10 +9,12 @@ export const queryKeys = {
   auditMovements: (tenantId: string, limit = 50) =>
     ["audit", tenantId, "movements", limit] as const,
   inventory: {
-    all: (tenantId: string) => ["inventory", tenantId, "products"] as const,
+    all: (tenantId: string, search?: string) =>
+      ["inventory", tenantId, "products", search ?? ""] as const,
     detail: (tenantId: string, productId: string) =>
       ["inventory", tenantId, "product", productId] as const,
   },
   stores: (tenantId: string) => ["stores", tenantId] as const,
-  storeProducts: (slug: string) => ["store-products", slug] as const,
+  storeProducts: (slug: string, search?: string) =>
+    ["store-products", slug, search ?? ""] as const,
 } as const;
