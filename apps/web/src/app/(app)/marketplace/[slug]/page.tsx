@@ -10,6 +10,9 @@ import { ViewToggle } from "@/components/catalog/view-toggle";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SearchInput } from "@/components/dashboard/search-input";
 import { useCatalogView } from "@/hooks/use-catalog-view";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import { queryKeys } from "@/lib/query-keys";
+import { revalidateInBackground } from "@/lib/query-cache";
 import { ApiError } from "@/services";
 import { cartService, catalogService } from "@/services";
 
@@ -20,12 +23,13 @@ export default function StoreCatalogPage({
 }) {
   const { slug } = use(params);
   const queryClient = useQueryClient();
+  const tenantId = useTenantId()!;
   const [search, setSearch] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { view, setView, ready } = useCatalogView();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["store-products", slug],
+  const { data, isPending } = useQuery({
+    queryKey: queryKeys.storeProducts(slug),
     queryFn: () => catalogService.getStoreProducts(slug),
   });
 
@@ -53,7 +57,9 @@ export default function StoreCatalogPage({
       cartService.addItem({ variantId, quantity, priceTenantId }),
     onSuccess: () => {
       toast.success("Adicionado ao carrinho");
-      void queryClient.invalidateQueries({ queryKey: ["cart"] });
+      if (tenantId) {
+        revalidateInBackground(queryClient, queryKeys.cart(tenantId));
+      }
     },
     onError: (error) => {
       toast.error(
@@ -62,8 +68,8 @@ export default function StoreCatalogPage({
     },
   });
 
-  if (isLoading || !ready) {
-    return <p className="text-zinc-500">Carregando catálogo...</p>;
+  if ((isPending && !data) || !ready) {
+    return <p className="text-muted-foreground">Carregando catálogo...</p>;
   }
 
   return (
@@ -78,7 +84,6 @@ export default function StoreCatalogPage({
 
       <PageHeader
         title={data?.store.name ?? slug}
-        endpoint={`GET /catalog/stores/${slug}/products`}
         description="Preços desta loja — estoque compartilhado globalmente"
       />
 

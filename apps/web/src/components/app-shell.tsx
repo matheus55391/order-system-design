@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services";
+import { clearSessionQueries } from "@/lib/query-cache";
 import { useAuthStore } from "@/store";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +20,7 @@ const navItems = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const refreshToken = useAuthStore((state) => state.refreshToken);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -26,13 +29,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (refreshToken) {
       void authService.logout({ refreshToken }).catch(() => undefined);
     }
+    clearSessionQueries(queryClient);
     clearSession();
     router.push("/login");
   };
 
   return (
-    <div className="app-theme min-h-screen bg-[#0a0a0a]">
-      <header className="border-b border-zinc-800/80 bg-[#0a0a0a]">
+    <div className="app-theme min-h-screen bg-background">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <Link href="/store" className="flex items-center gap-2.5">

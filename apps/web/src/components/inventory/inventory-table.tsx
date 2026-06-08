@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { authInputClass } from "@/components/auth/auth-field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -32,6 +33,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { InventoryProductDto } from "@/services";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import { queryKeys } from "@/lib/query-keys";
+import { revalidateInBackground } from "@/lib/query-cache";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
@@ -111,14 +115,15 @@ function SortableHead({
 
 export function InventoryTable({
   products,
-  isLoading,
+  isPending,
   defaultNewOpen = false,
 }: {
   products: InventoryProductDto[];
-  isLoading?: boolean;
+  isPending?: boolean;
   defaultNewOpen?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<SortKey>("productName");
@@ -181,13 +186,18 @@ export function InventoryTable({
   };
 
   const reload = () => {
-    void queryClient.invalidateQueries({ queryKey: ["inventory-products"] });
+    if (tenantId) {
+      revalidateInBackground(
+        queryClient,
+        queryKeys.inventory.all(tenantId),
+      );
+    }
   };
 
   const rangeStart = sorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, sorted.length);
 
-  if (isLoading) {
+  if (isPending) {
     return <p className="text-muted-foreground">Carregando produtos...</p>;
   }
 
@@ -203,7 +213,7 @@ export function InventoryTable({
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="h-9 max-w-xs border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
+              className={cn(authInputClass(), "h-9 max-w-xs")}
             />
             <Button
               type="button"
@@ -237,10 +247,10 @@ export function InventoryTable({
           </Button>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-zinc-800">
+        <div className="overflow-hidden rounded-lg border border-border">
           <Table>
             <TableHeader>
-              <TableRow className="border-zinc-800 bg-zinc-950/80 hover:bg-zinc-950/80">
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
                 <TableHead className="px-3 text-muted-foreground">
                   <SortableHead
                     label="Produto"
@@ -322,7 +332,7 @@ export function InventoryTable({
                 pageRows.map((row) => (
                   <TableRow
                     key={row.variantId}
-                    className="border-zinc-800/80 hover:bg-zinc-900/40"
+                    className="hover:bg-muted/20"
                   >
                     <TableCell className="px-3 py-3">
                       <div className="flex items-center gap-3">
@@ -369,7 +379,7 @@ export function InventoryTable({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                           align="end"
-                          className="min-w-36 border-zinc-800 bg-zinc-950"
+                          className="app-theme min-w-36 border-zinc-800 bg-zinc-950"
                         >
                           <DropdownMenuItem asChild>
                             <Link href={`/inventory/${row.productId}/edit`}>
@@ -386,7 +396,7 @@ export function InventoryTable({
           </Table>
 
           {sorted.length > 0 && (
-            <div className="flex flex-col gap-3 border-t border-zinc-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground">
                 {rangeStart}–{rangeEnd} de {sorted.length} itens
               </p>
@@ -419,8 +429,8 @@ export function InventoryTable({
                         className={cn(
                           "flex size-8 items-center justify-center rounded-md text-xs",
                           p === currentPage
-                            ? "bg-zinc-800 text-foreground"
-                            : "text-muted-foreground hover:bg-zinc-900 hover:text-foreground",
+                            ? "bg-accent text-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
                         )}
                       >
                         {p}

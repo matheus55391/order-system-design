@@ -71,7 +71,7 @@ export function ProductImageUpload({
       />
 
       {previewUrl ? (
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
+        <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-muted/30">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={previewUrl}
@@ -82,7 +82,7 @@ export function ProductImageUpload({
             type="button"
             variant="secondary"
             size="icon"
-            className="absolute top-3 right-3 size-9 bg-zinc-950/90 text-white hover:bg-zinc-900"
+            className="absolute top-3 right-3 size-9 bg-background/90 text-foreground hover:bg-accent"
             onClick={clear}
           >
             <X className="size-4" />
@@ -106,18 +106,18 @@ export function ProductImageUpload({
           className={cn(
             "flex aspect-square w-full flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-6 text-center transition-colors",
             isDragging
-              ? "border-orange-500 bg-orange-500/5"
-              : "border-zinc-700 bg-zinc-900/40 hover:border-orange-500/60 hover:bg-zinc-900/70",
+              ? "border-primary bg-primary/5"
+              : "border-border bg-muted/20 hover:border-primary/60 hover:bg-muted/40",
           )}
         >
-          <div className="flex size-14 items-center justify-center rounded-full bg-zinc-800/80">
-            <ImagePlus className="size-7 text-orange-400" />
+          <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+            <ImagePlus className="size-7 text-primary" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-foreground">
               Arraste a imagem ou clique para enviar
             </p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground">
               JPEG, PNG ou WebP — até {MAX_SIZE_MB} MB
             </p>
           </div>
@@ -128,7 +128,7 @@ export function ProductImageUpload({
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-full border-zinc-700 bg-transparent text-zinc-300 hover:border-orange-500/40 hover:bg-zinc-900 hover:text-white"
+          className="h-10 w-full"
           onClick={() => inputRef.current?.click()}
         >
           <Upload className="size-4" />

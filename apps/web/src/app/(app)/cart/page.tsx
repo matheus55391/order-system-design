@@ -9,6 +9,12 @@ import { toast } from "sonner";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ProductImage } from "@/components/product-image";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import { queryKeys } from "@/lib/query-keys";
+import {
+  revalidateCheckout,
+  revalidateInBackground,
+} from "@/lib/query-cache";
 import { ApiError } from "@/services";
 import {
   cartService,
@@ -97,30 +103,31 @@ function formatExpiry(expiresAt: string) {
 export default function CartPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const tenantId = useTenantId()!;
 
-  const { data: cart, isLoading: cartLoading } = useQuery({
-    queryKey: ["cart"],
+  const { data: cart, isPending: cartPending } = useQuery({
+    queryKey: queryKeys.cart(tenantId),
     queryFn: () => cartService.getCart(),
+    enabled: Boolean(tenantId),
   });
 
-  const { data: reservations, isLoading: resLoading } = useQuery({
-    queryKey: ["reservations"],
+  const { data: reservations, isPending: reservationsPending } = useQuery({
+    queryKey: queryKeys.reservations(tenantId),
     queryFn: () => reservationsService.getReservations(),
+    enabled: Boolean(tenantId),
     refetchInterval: 5_000,
   });
 
-  const invalidateAll = () => {
-    void queryClient.invalidateQueries({ queryKey: ["cart"] });
-    void queryClient.invalidateQueries({ queryKey: ["reservations"] });
-    void queryClient.invalidateQueries({ queryKey: ["products"] });
-    void queryClient.invalidateQueries({ queryKey: ["audit"] });
+  const revalidateCheckoutData = () => {
+    if (!tenantId) return;
+    revalidateCheckout(queryClient, tenantId);
   };
 
   const removeCartItem = useMutation({
     mutationFn: (itemId: string) => cartService.removeItem(itemId),
     onSuccess: () => {
       toast.success("Item removido");
-      invalidateAll();
+      revalidateCheckoutData();
     },
     onError: (error) => {
       toast.error(
@@ -132,7 +139,7 @@ export default function CartPage() {
   const updateQuantity = useMutation({
     mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
       cartService.updateItem(itemId, { quantity }),
-    onSuccess: invalidateAll,
+    onSuccess: revalidateCheckoutData,
     onError: (error) => {
       toast.error(
         error instanceof ApiError ? error.message : "Erro ao atualizar quantidade",
@@ -144,7 +151,7 @@ export default function CartPage() {
     mutationFn: () => reservationsService.reserveFromCart(),
     onSuccess: () => {
       toast.success("Estoque reservado");
-      invalidateAll();
+      revalidateCheckoutData();
     },
     onError: (error) => {
       toast.error(
@@ -157,7 +164,7 @@ export default function CartPage() {
     mutationFn: (id: string) => reservationsService.cancelReservation(id),
     onSuccess: () => {
       toast.success("Reserva cancelada");
-      invalidateAll();
+      revalidateCheckoutData();
     },
     onError: (error) => {
       toast.error(
@@ -173,8 +180,11 @@ export default function CartPage() {
       }),
     onSuccess: () => {
       toast.success("Pedido confirmado");
-      void queryClient.invalidateQueries({ queryKey: ["orders"] });
-      invalidateAll();
+      revalidateInBackground(
+        queryClient,
+        queryKeys.orders(tenantId),
+      );
+      revalidateCheckoutData();
       router.push("/orders");
     },
     onError: (error) => {
@@ -201,8 +211,11 @@ export default function CartPage() {
   const hasCheckout = cartCount > 0 || resCount > 0;
   const subtotal = cartTotal + reservationTotal;
 
-  if (cartLoading || resLoading) {
-    return <p className="text-zinc-500">Carregando carrinho...</p>;
+  const isPending =
+    (cartPending && !cart) || (reservationsPending && !reservations);
+
+  if (isPending) {
+    return <p className="text-muted-foreground">Carregando carrinho...</p>;
   }
 
   return (

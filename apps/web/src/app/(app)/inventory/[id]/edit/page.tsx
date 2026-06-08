@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -12,6 +13,13 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { ApiError } from "@/services";
 import { inventoryService } from "@/services";
 import { addVariantSchema, updateProductSchema } from "@/schema";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import {
+  isUuid,
+  revalidateInventory,
+  setInventoryProductCache,
+} from "@/lib/query-cache";
+import { queryKeys } from "@/lib/query-keys";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -26,11 +34,26 @@ export default function EditProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const validId = isUuid(id);
 
-  const { data: product, isLoading } = useQuery({
-    queryKey: ["inventory-product", id],
+  useEffect(() => {
+    if (!validId) {
+      router.replace("/inventory");
+    }
+  }, [validId, router]);
+
+  const {
+    data: product,
+    isPending,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.inventory.detail(tenantId!, id),
     queryFn: () => inventoryService.getProduct(id),
+    enabled: Boolean(tenantId && validId),
   });
 
   const productForm = useForm({
@@ -69,10 +92,11 @@ export default function EditProductPage({
         description: values.description ?? null,
         imageUrl: values.imageUrl ?? null,
       }),
-    onSuccess: () => {
+    onSuccess: (updatedProduct) => {
+      if (!tenantId) return;
+      setInventoryProductCache(queryClient, tenantId, updatedProduct);
+      revalidateInventory(queryClient, tenantId);
       toast.success("Produto atualizado");
-      void queryClient.invalidateQueries({ queryKey: ["inventory-products"] });
-      void queryClient.invalidateQueries({ queryKey: ["inventory-product", id] });
     },
     onError: (error) => {
       toast.error(
@@ -94,11 +118,12 @@ export default function EditProductPage({
         size: values.size || undefined,
         color: values.color || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: (updatedProduct) => {
+      if (!tenantId) return;
+      setInventoryProductCache(queryClient, tenantId, updatedProduct);
+      revalidateInventory(queryClient, tenantId);
       toast.success("Variante adicionada");
       variantForm.reset();
-      void queryClient.invalidateQueries({ queryKey: ["inventory-products"] });
-      void queryClient.invalidateQueries({ queryKey: ["inventory-product", id] });
     },
     onError: (error) => {
       toast.error(
@@ -121,11 +146,11 @@ export default function EditProductPage({
         totalStock?: number;
       };
     }) => inventoryService.updateVariant(variantId, data),
-    onSuccess: () => {
+    onSuccess: (updatedProduct) => {
+      if (!tenantId) return;
+      setInventoryProductCache(queryClient, tenantId, updatedProduct);
+      revalidateInventory(queryClient, tenantId);
       toast.success("Variante atualizada");
-      void queryClient.invalidateQueries({ queryKey: ["inventory-products"] });
-      void queryClient.invalidateQueries({ queryKey: ["inventory-product", id] });
-      void queryClient.invalidateQueries({ queryKey: ["products"] });
     },
     onError: (error) => {
       toast.error(
@@ -134,8 +159,44 @@ export default function EditProductPage({
     },
   });
 
-  if (isLoading || !product) {
-    return <p className="text-zinc-500">Carregando produto...</p>;
+  if (!validId) {
+    return null;
+  }
+
+  if (isPending && !product) {
+    return <p className="text-muted-foreground">Carregando produto...</p>;
+  }
+
+  if (isError && !product) {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-red-400">
+          {error instanceof ApiError
+            ? error.message
+            : "Erro ao carregar produto"}
+        </p>
+        <Link
+          href="/inventory"
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← Voltar ao estoque
+        </Link>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-muted-foreground">Produto não encontrado</p>
+        <Link
+          href="/inventory"
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← Voltar ao estoque
+        </Link>
+      </div>
+    );
   }
 
   return (

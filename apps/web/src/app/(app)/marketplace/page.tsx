@@ -5,23 +5,27 @@ import { Store } from "lucide-react";
 import Link from "next/link";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import { queryKeys } from "@/lib/query-keys";
 import { catalogService } from "@/services";
 
 export default function MarketplacePage() {
-  const { data: stores, isLoading } = useQuery({
-    queryKey: ["stores"],
+  const tenantId = useTenantId()!;
+
+  const { data: stores, isPending } = useQuery({
+    queryKey: queryKeys.stores(tenantId),
     queryFn: () => catalogService.listStores(),
+    enabled: Boolean(tenantId),
   });
 
-  if (isLoading) {
-    return <p className="text-zinc-500">Carregando lojas...</p>;
+  if (isPending && !stores) {
+    return <p className="text-muted-foreground">Carregando lojas...</p>;
   }
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Marketplace"
-        endpoint="GET /catalog/stores"
         description="Compre produtos de outras lojas com preços do tenant vendedor"
       />
 

@@ -5,21 +5,25 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import { queryKeys } from "@/lib/query-keys";
 import { inventoryService } from "@/services";
 
 function InventoryContent() {
   const searchParams = useSearchParams();
   const openNew = searchParams.get("new") === "1";
+  const tenantId = useTenantId();
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ["inventory-products"],
+  const { data: products, isPending } = useQuery({
+    queryKey: queryKeys.inventory.all(tenantId!),
     queryFn: () => inventoryService.listProducts(),
+    enabled: Boolean(tenantId),
   });
 
   return (
     <InventoryTable
       products={products ?? []}
-      isLoading={isLoading}
+      isPending={isPending && !products}
       defaultNewOpen={openNew}
     />
   );
@@ -32,7 +36,7 @@ export default function InventoryPage() {
         title="Estoque"
         description="Cadastro de produtos, preços e controle de estoque da sua loja"
       />
-      <Suspense fallback={<p className="text-zinc-500">Carregando...</p>}>
+      <Suspense fallback={<p className="text-muted-foreground">Carregando...</p>}>
         <InventoryContent />
       </Suspense>
     </div>

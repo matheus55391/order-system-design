@@ -12,7 +12,7 @@ interface AuthFieldProps {
 export function AuthField({ id, label, error, children }: AuthFieldProps) {
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id} className="text-sm font-medium text-zinc-300">
+      <Label htmlFor={id} className="text-sm font-medium text-muted-foreground">
         {label}
       </Label>
       {children}
@@ -23,8 +23,8 @@ export function AuthField({ id, label, error, children }: AuthFieldProps) {
 
 export function authInputClass(className?: string) {
   return cn(
-    "h-11 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600",
-    "focus-visible:border-orange-500 focus-visible:ring-orange-500/50",
+    "h-11 border-input bg-background text-foreground placeholder:text-muted-foreground",
+    "focus-visible:border-ring focus-visible:ring-ring/50",
     className,
   );
 }

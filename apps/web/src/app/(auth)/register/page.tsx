@@ -1,10 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { clearSessionQueries } from "@/lib/query-cache";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthField, authInputClass } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
@@ -15,6 +17,7 @@ import { useAuthStore } from "@/store";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const setSession = useAuthStore((state) => state.setSession);
 
   const form = useForm({
@@ -29,6 +32,7 @@ export default function RegisterPage() {
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       const response = await authService.register(values);
+      clearSessionQueries(queryClient);
       setSession(response.token, response.refreshToken, response.user);
       toast.success("Empresa criada com sucesso");
       router.push("/store");

@@ -7,6 +7,8 @@ import { useMemo } from "react";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import { queryKeys } from "@/lib/query-keys";
 import {
   auditService,
   ordersService,
@@ -29,25 +31,30 @@ function formatCurrency(value: number) {
 
 export default function StorePage() {
   const user = useAuthStore((state) => state.user)!;
+  const tenantId = useTenantId()!;
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ["audit-summary"],
+  const { data: summary, isPending: summaryPending } = useQuery({
+    queryKey: queryKeys.auditSummary(tenantId),
     queryFn: () => auditService.getSummary(),
+    enabled: Boolean(tenantId),
   });
 
-  const { data: movements, isLoading: movementsLoading } = useQuery({
-    queryKey: ["audit", "dashboard"],
+  const { data: movements, isPending: movementsPending } = useQuery({
+    queryKey: queryKeys.auditMovements(tenantId, 10),
     queryFn: () => auditService.getMovements(10),
+    enabled: Boolean(tenantId),
   });
 
-  const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ["orders"],
+  const { data: orders, isPending: ordersPending } = useQuery({
+    queryKey: queryKeys.orders(tenantId),
     queryFn: () => ordersService.getOrders(),
+    enabled: Boolean(tenantId),
   });
 
-  const { data: reservations, isLoading: reservationsLoading } = useQuery({
-    queryKey: ["reservations"],
+  const { data: reservations, isPending: reservationsPending } = useQuery({
+    queryKey: queryKeys.reservations(tenantId),
     queryFn: () => reservationsService.getReservations(),
+    enabled: Boolean(tenantId),
   });
 
   const orderStats = useMemo(() => {
@@ -60,11 +67,14 @@ export default function StorePage() {
     };
   }, [orders]);
 
-  const isLoading =
-    summaryLoading || movementsLoading || ordersLoading || reservationsLoading;
+  const isPending =
+    (summaryPending && !summary) ||
+    (movementsPending && !movements) ||
+    (ordersPending && !orders) ||
+    (reservationsPending && !reservations);
 
-  if (isLoading) {
-    return <p className="text-zinc-500">Carregando painel...</p>;
+  if (isPending) {
+    return <p className="text-muted-foreground">Carregando painel...</p>;
   }
 
   return (

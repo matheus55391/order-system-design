@@ -45,7 +45,7 @@ export class InventoryManagementService {
 
     const imageUrl = input.imageUrl?.trim() || DEFAULT_IMAGE_URL;
 
-    return this.prisma.$transaction(async (tx) => {
+    const productId = await this.prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
           name: input.name,
@@ -79,8 +79,12 @@ export class InventoryManagementService {
         },
       });
 
-      return this.catalogService.getProduct(tenantId, product.id);
+      return product.id;
     });
+
+    const product = await this.catalogService.getProduct(tenantId, productId);
+    if (!product) throw new NotFoundException("Produto não encontrado");
+    return product;
   }
 
   async updateProduct(

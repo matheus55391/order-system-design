@@ -10,7 +10,7 @@ export function DashCard({ children, className }: DashCardProps) {
   return (
     <Card
       className={cn(
-        "overflow-hidden border-zinc-800/80 bg-zinc-900/50 shadow-none",
+        "overflow-hidden border-border bg-card/80 shadow-none",
         className,
       )}
     >

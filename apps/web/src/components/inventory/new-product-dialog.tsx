@@ -10,9 +10,9 @@ import { AuthField, AuthInput, authInputClass } from "@/components/auth/auth-fie
 import { ProductImageUpload } from "@/components/inventory/product-image-upload";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { FullscreenDialogContent } from "@/components/inventory/fullscreen-dialog-content";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -23,6 +23,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/services";
 import { inventoryService } from "@/services";
 import { createProductFormSchema } from "@/schema";
+import { useTenantId } from "@/hooks/use-tenant-id";
+import {
+  revalidateInventory,
+  setInventoryProductCache,
+} from "@/lib/query-cache";
 import { cn } from "@/lib/utils";
 
 const defaultImage =
@@ -50,6 +55,7 @@ export function NewProductDialog({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const form = useForm({
@@ -85,8 +91,18 @@ export function NewProductDialog({
           color: values.variant.color || undefined,
         },
       });
+
+      if (!product?.id) {
+        throw new ApiError("Produto criado sem identificador", 500);
+      }
+
+      if (!tenantId) {
+        throw new ApiError("Sessão inválida", 401);
+      }
+
+      setInventoryProductCache(queryClient, tenantId, product);
+      revalidateInventory(queryClient, tenantId);
       toast.success("Produto cadastrado");
-      void queryClient.invalidateQueries({ queryKey: ["inventory-products"] });
       close();
       router.push(`/inventory/${product.id}/edit`);
     } catch (error) {
@@ -101,12 +117,12 @@ export function NewProductDialog({
       open={open}
       onOpenChange={(value) => (value ? onOpenChange(true) : close())}
     >
-      <DialogContent fullscreen className="border-zinc-800 bg-zinc-950">
-        <DialogHeader className="shrink-0 border-b border-zinc-800 px-6 py-5 text-left sm:px-8">
-          <DialogTitle className="text-2xl font-semibold text-white">
+      <FullscreenDialogContent>
+        <DialogHeader className="shrink-0 border-b border-border px-6 py-5 text-left sm:px-8">
+          <DialogTitle className="text-2xl font-semibold">
             Novo produto
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogDescription>
             Cadastre o produto com a primeira variante, preço e estoque
           </DialogDescription>
         </DialogHeader>
@@ -117,7 +133,7 @@ export function NewProductDialog({
         >
           <div className="flex-1 overflow-y-auto px-6 py-8 sm:px-8">
             <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[minmax(0,320px)_1fr] lg:gap-10">
-              <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
+              <section className="rounded-xl border border-border bg-card/50 p-5">
                 <AuthField id="dialog-image" label="Imagem do produto">
                   <ProductImageUpload
                     value={imageFile}
@@ -158,12 +174,12 @@ export function NewProductDialog({
                   </AuthField>
                 </section>
 
-                <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
+                <section className="rounded-xl border border-border bg-card/50 p-5">
                   <div className="mb-5">
-                    <h3 className="text-sm font-semibold text-white">
+                    <h3 className="text-sm font-semibold text-foreground">
                       Primeira variante
                     </h3>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       SKU, atributos, preço e estoque inicial
                     </p>
                   </div>
@@ -258,11 +274,10 @@ export function NewProductDialog({
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 gap-3 border-t border-zinc-800 bg-zinc-950/90 px-6 py-4 backdrop-blur sm:justify-end sm:px-8">
+          <DialogFooter className="shrink-0 gap-3 border-t border-border bg-background/90 px-6 py-4 backdrop-blur sm:justify-end sm:px-8">
             <Button
               type="button"
               variant="ghost"
-              className="text-zinc-400 hover:text-white"
               onClick={close}
             >
               Cancelar
@@ -276,7 +291,7 @@ export function NewProductDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </FullscreenDialogContent>
     </Dialog>
   );
 }
