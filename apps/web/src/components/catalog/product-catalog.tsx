@@ -3,7 +3,7 @@
 import { ShoppingCart } from "lucide-react";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { ProductImage } from "@/components/product-image";
-import type { ProductDto } from "@/services";
+import type { ProductDto } from "@repo/shared";
 import { cn } from "@/lib/utils";
 import type { CatalogView } from "./view-toggle";
 

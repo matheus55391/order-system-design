@@ -20,9 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { IntegerInput } from "@/components/ui/integer-input";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@/services";
-import { inventoryService } from "@/services";
-import { createProductFormSchema } from "@/schema";
+import { ApiError } from "@repo/shared/data-access";
+import { inventoryService } from "@repo/shared/data-access";
+import { createProductFormSchema } from "@repo/shared";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import {
   revalidateInventory,

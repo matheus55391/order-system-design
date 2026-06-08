@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Settings } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CartHeaderButton } from "@/components/cart-header-button";
-import { authService } from "@/services";
+import { authService } from "@repo/shared/data-access";
 import { clearSessionQueries } from "@/lib/query-cache";
 import { useAuthStore } from "@/store";
 import { cn } from "@/lib/utils";

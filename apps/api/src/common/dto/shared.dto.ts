@@ -1,6 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import type {
+  AuditMetricDto as IAuditMetricDto,
+  MessageResponseDto as IMessageResponseDto,
+  StoreListItemDto as IStoreListItemDto,
+  SuccessResponseDto as ISuccessResponseDto,
+  TenantCountDto as ITenantCountDto,
+  TenantRefDto as ITenantRefDto,
+  UserRefDto as IUserRefDto,
+} from "@repo/shared";
 
-export class TenantRefDto {
+export class TenantRefDto implements ITenantRefDto {
   @ApiProperty({ example: "00000000-0000-4000-8000-000000000001" })
   id!: string;
 
@@ -11,17 +20,17 @@ export class TenantRefDto {
   slug!: string;
 }
 
-export class MessageResponseDto {
+export class MessageResponseDto implements IMessageResponseDto {
   @ApiProperty({ example: "Operação realizada com sucesso" })
   message!: string;
 }
 
-export class SuccessResponseDto {
+export class SuccessResponseDto implements ISuccessResponseDto {
   @ApiProperty({ example: true })
   success!: boolean;
 }
 
-export class UserRefDto {
+export class UserRefDto implements IUserRefDto {
   @ApiProperty()
   id!: string;
 
@@ -32,17 +41,17 @@ export class UserRefDto {
   email!: string;
 }
 
-export class TenantCountDto {
+export class TenantCountDto implements ITenantCountDto {
   @ApiProperty({ example: 24 })
   productPrices!: number;
 }
 
-export class StoreListItemDto extends TenantRefDto {
+export class StoreListItemDto extends TenantRefDto implements IStoreListItemDto {
   @ApiProperty({ type: TenantCountDto })
   _count!: TenantCountDto;
 }
 
-export class AuditMetricDto {
+export class AuditMetricDto implements IAuditMetricDto {
   @ApiProperty({ example: 12 })
   count!: number;
 

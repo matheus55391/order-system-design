@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { getMarketplaceStoreSlug } from "@/lib/marketplace-path";
 import { queryKeys } from "@/lib/query-keys";
-import { cartService } from "@/services";
+import { cartService } from "@repo/shared/data-access";
 import { cn } from "@/lib/utils";
 
 export function CartHeaderButton() {

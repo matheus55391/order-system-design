@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { authService } from "@/services";
+import { authService } from "@repo/shared/data-access";
 import { useAuthStore } from "@/store";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {

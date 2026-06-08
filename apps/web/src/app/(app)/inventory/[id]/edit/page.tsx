@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { ApiError } from "@/services";
-import { inventoryService } from "@/services";
-import { addVariantSchema, updateProductSchema } from "@/schema";
+import { ApiError } from "@repo/shared/data-access";
+import { inventoryService } from "@repo/shared/data-access";
+import { addVariantSchema, updateProductSchema } from "@repo/shared";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import {
   isUuid,

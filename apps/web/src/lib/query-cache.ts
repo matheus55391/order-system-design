@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import type { InventoryProductDto } from "@/services";
+import type { InventoryProductDto } from "@repo/shared";
 import { queryKeys } from "@/lib/query-keys";
 
 export function isUuid(value: string): boolean {

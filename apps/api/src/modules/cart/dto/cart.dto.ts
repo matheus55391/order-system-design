@@ -1,7 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import type {
+  AddToCartRequestDto as IAddToCartRequestDto,
+  CartItemDto as ICartItemDto,
+  CartItemMutationResponseDto as ICartItemMutationResponseDto,
+  CartResponseDto as ICartResponseDto,
+  CartVariantDto as ICartVariantDto,
+  UpdateCartItemRequestDto as IUpdateCartItemRequestDto,
+} from "@repo/shared";
 import { TenantRefDto } from "../../../common/dto/shared.dto";
 
-export class AddToCartRequestDto {
+export class AddToCartRequestDto implements IAddToCartRequestDto {
   @ApiProperty({ format: "uuid" })
   variantId!: string;
 
@@ -15,12 +23,12 @@ export class AddToCartRequestDto {
   priceTenantId!: string;
 }
 
-export class UpdateCartItemRequestDto {
+export class UpdateCartItemRequestDto implements IUpdateCartItemRequestDto {
   @ApiProperty({ minimum: 1, maximum: 100, example: 2 })
   quantity!: number;
 }
 
-export class CartVariantDto {
+export class CartVariantDto implements ICartVariantDto {
   @ApiProperty()
   id!: string;
 
@@ -46,7 +54,7 @@ export class CartVariantDto {
   price!: number;
 }
 
-export class CartItemDto {
+export class CartItemDto implements ICartItemDto {
   @ApiProperty()
   id!: string;
 
@@ -63,7 +71,7 @@ export class CartItemDto {
   variant!: CartVariantDto;
 }
 
-export class CartResponseDto {
+export class CartResponseDto implements ICartResponseDto {
   @ApiProperty({ nullable: true })
   id!: string | null;
 
@@ -74,7 +82,9 @@ export class CartResponseDto {
   items!: CartItemDto[];
 }
 
-export class CartItemMutationResponseDto {
+export class CartItemMutationResponseDto
+  implements Omit<ICartItemMutationResponseDto, "createdAt" | "updatedAt">
+{
   @ApiProperty()
   id!: string;
 

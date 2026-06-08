@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { InventoryProductDto } from "@/services";
+import type { InventoryProductDto } from "@repo/shared";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { queryKeys } from "@/lib/query-keys";
 import { revalidateInBackground } from "@/lib/query-cache";

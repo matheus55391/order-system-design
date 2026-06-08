@@ -16,6 +16,14 @@
     "./types": {
       "types": "./dist/types/index.d.ts",
       "default": "./dist/types/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "default": "./dist/contracts/index.js"
+    },
+    "./data-access": {
+      "types": "./dist/data-access/index.d.ts",
+      "default": "./dist/data-access/index.js"
     }
   },
   "scripts": {
@@ -24,6 +32,7 @@
     "lint": "eslint --max-warnings 0"
   },
   "dependencies": {
+    "axios": "^1.17.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {

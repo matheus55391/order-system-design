@@ -1,7 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import type {
+  CreateProductRequestDto as ICreateProductRequestDto,
+  CreateProductVariantRequestDto as ICreateProductVariantRequestDto,
+  UpdateProductRequestDto as IUpdateProductRequestDto,
+  UpdateVariantRequestDto as IUpdateVariantRequestDto,
+} from "@repo/shared";
 import { ProductDto } from "../../catalog/dto/catalog.dto";
 
-export class CreateProductVariantRequestDto {
+export class CreateProductVariantRequestDto implements ICreateProductVariantRequestDto {
   @ApiProperty({ example: "CAM-M-AZUL" })
   sku!: string;
 
@@ -18,7 +24,7 @@ export class CreateProductVariantRequestDto {
   totalStock!: number;
 }
 
-export class CreateProductRequestDto {
+export class CreateProductRequestDto implements ICreateProductRequestDto {
   @ApiProperty({ example: "Camiseta Básica" })
   name!: string;
 
@@ -32,7 +38,7 @@ export class CreateProductRequestDto {
   variant!: CreateProductVariantRequestDto;
 }
 
-export class UpdateProductRequestDto {
+export class UpdateProductRequestDto implements IUpdateProductRequestDto {
   @ApiPropertyOptional()
   name?: string;
 
@@ -43,7 +49,7 @@ export class UpdateProductRequestDto {
   imageUrl?: string | null;
 }
 
-export class UpdateVariantRequestDto {
+export class UpdateVariantRequestDto implements IUpdateVariantRequestDto {
   @ApiPropertyOptional()
   sku?: string;
 

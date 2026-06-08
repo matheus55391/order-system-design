@@ -25,12 +25,12 @@ import {
   revalidateCheckout,
   revalidateInBackground,
 } from "@/lib/query-cache";
-import { ApiError } from "@/services";
+import { ApiError } from "@repo/shared/data-access";
 import {
   cartService,
   ordersService,
   reservationsService,
-} from "@/services";
+} from "@repo/shared/data-access";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {

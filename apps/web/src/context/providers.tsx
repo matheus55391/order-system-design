@@ -1,5 +1,6 @@
 "use client";
 
+import "@/lib/data-access";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";

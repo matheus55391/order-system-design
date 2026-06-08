@@ -10,7 +10,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import type { OrdersViewMode } from "@/lib/order-status";
 import { queryKeys } from "@/lib/query-keys";
-import { ordersService, type OrderResponseDto } from "@/services";
+import type { OrderResponseDto } from "@repo/shared";
+import { ordersService } from "@repo/shared/data-access";
 
 const tabs: { id: OrdersViewMode; label: string }[] = [
   { id: "incoming", label: "Recebidos" },

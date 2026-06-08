@@ -157,6 +157,17 @@ Ver `.env.example` na raiz do monorepo. Principais:
 | `JWT_SECRET` | — | HMAC do access/refresh token |
 | `SMTP_*` | MailHog `1025` | E-mails (worker assíncrono) |
 
+## Contratos compartilhados (`@repo/shared`)
+
+Tipos de request/response da API vivem em `packages/shared/src/contracts/`. A API usa classes Swagger que `implement` essas interfaces; o web importa os mesmos tipos nos `services/`.
+
+```
+packages/shared/src/
+├── schemas/    → Zod (validação runtime)
+├── types/      → domínio (UserRole, JwtPayload, etc.)
+└── contracts/  → DTOs HTTP (auth, catalog, cart, orders, ...)
+```
+
 ## Estender o sistema
 
 ### Nova fila RabbitMQ

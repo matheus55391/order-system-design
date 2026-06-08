@@ -1,17 +1,24 @@
 import { ApiProperty } from "@nestjs/swagger";
+import type {
+  ConfirmOrderRequestDto as IConfirmOrderRequestDto,
+  OrderItemDto as IOrderItemDto,
+  OrderItemVariantDto as IOrderItemVariantDto,
+  OrderResponseDto as IOrderResponseDto,
+  UpdateOrderStatusRequestDto as IUpdateOrderStatusRequestDto,
+} from "@repo/shared";
 import { TenantRefDto } from "../../../common/dto/shared.dto";
 
-export class ConfirmOrderRequestDto {
+export class ConfirmOrderRequestDto implements IConfirmOrderRequestDto {
   @ApiProperty({ type: [String], format: "uuid", minItems: 1 })
   reservationIds!: string[];
 }
 
-export class UpdateOrderStatusRequestDto {
+export class UpdateOrderStatusRequestDto implements IUpdateOrderStatusRequestDto {
   @ApiProperty({ enum: ["DELIVERED", "CANCELED"] })
   status!: "DELIVERED" | "CANCELED";
 }
 
-export class OrderItemVariantDto {
+export class OrderItemVariantDto implements IOrderItemVariantDto {
   @ApiProperty()
   id!: string;
 
@@ -31,7 +38,7 @@ export class OrderItemVariantDto {
   productImageUrl!: string | null;
 }
 
-export class OrderItemDto {
+export class OrderItemDto implements IOrderItemDto {
   @ApiProperty()
   id!: string;
 
@@ -48,7 +55,7 @@ export class OrderItemDto {
   variant!: OrderItemVariantDto;
 }
 
-export class OrderResponseDto {
+export class OrderResponseDto implements Omit<IOrderResponseDto, "createdAt"> {
   @ApiProperty()
   id!: string;
 

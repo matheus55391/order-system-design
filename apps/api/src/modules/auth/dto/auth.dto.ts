@@ -1,31 +1,44 @@
 import { ApiProperty } from "@nestjs/swagger";
+import type {
+  AuthResponseDto as IAuthResponseDto,
+  AuthUserDto as IAuthUserDto,
+  ForgotPasswordRequestDto as IForgotPasswordRequestDto,
+  LoginRequestDto as ILoginRequestDto,
+  RefreshTokenRequestDto as IRefreshTokenRequestDto,
+  RegisterRequestDto as IRegisterRequestDto,
+  ResetPasswordRequestDto as IResetPasswordRequestDto,
+} from "@repo/shared";
 import { TenantRefDto } from "../../../common/dto/shared.dto";
 
-export class LoginRequestDto {
-  @ApiProperty({ example: "buyer@acme.com" })
+export class LoginRequestDto implements ILoginRequestDto {
+  @ApiProperty({ example: "loja-alfa@demo.com" })
   email!: string;
 
   @ApiProperty({ example: "password123", minLength: 6 })
   password!: string;
 }
 
-export class RegisterRequestDto {
+export class RegisterRequestDto implements IRegisterRequestDto {
   @ApiProperty({ example: "minha-loja@demo.com" })
   email!: string;
 
   @ApiProperty({ example: "password123", minLength: 6 })
   password!: string;
 
-  @ApiProperty({ example: "Minha Loja", minLength: 2, description: "Nome da empresa — cria o tenant automaticamente" })
+  @ApiProperty({
+    example: "Minha Loja",
+    minLength: 2,
+    description: "Nome da empresa — cria o tenant automaticamente",
+  })
   companyName!: string;
 }
 
-export class ForgotPasswordRequestDto {
-  @ApiProperty({ example: "buyer@acme.com" })
+export class ForgotPasswordRequestDto implements IForgotPasswordRequestDto {
+  @ApiProperty({ example: "loja-alfa@demo.com" })
   email!: string;
 }
 
-export class ResetPasswordRequestDto {
+export class ResetPasswordRequestDto implements IResetPasswordRequestDto {
   @ApiProperty()
   token!: string;
 
@@ -33,12 +46,12 @@ export class ResetPasswordRequestDto {
   password!: string;
 }
 
-export class RefreshTokenRequestDto {
+export class RefreshTokenRequestDto implements IRefreshTokenRequestDto {
   @ApiProperty()
   refreshToken!: string;
 }
 
-export class AuthUserDto {
+export class AuthUserDto implements IAuthUserDto {
   @ApiProperty()
   id!: string;
 
@@ -49,7 +62,7 @@ export class AuthUserDto {
   name!: string;
 
   @ApiProperty({ enum: ["ADMIN", "BUYER"] })
-  role!: string;
+  role!: "ADMIN" | "BUYER";
 
   @ApiProperty()
   tenantId!: string;
@@ -58,7 +71,7 @@ export class AuthUserDto {
   tenant!: TenantRefDto;
 }
 
-export class AuthResponseDto {
+export class AuthResponseDto implements IAuthResponseDto {
   @ApiProperty({ description: "JWT access token" })
   token!: string;
 

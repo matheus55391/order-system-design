@@ -7,7 +7,7 @@ import { InventoryTable } from "@/components/inventory/inventory-table";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { queryKeys } from "@/lib/query-keys";
-import { inventoryService } from "@/services";
+import { inventoryService } from "@repo/shared/data-access";
 
 function InventoryContent() {
   const searchParams = useSearchParams();

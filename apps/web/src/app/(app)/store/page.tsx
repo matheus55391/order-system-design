@@ -14,7 +14,7 @@ import {
   auditService,
   ordersService,
   reservationsService,
-} from "@/services";
+} from "@repo/shared/data-access";
 import { useAuthStore } from "@/store";
 
 const typeLabels = {
@@ -90,7 +90,7 @@ export default function StorePage() {
         <StatCard
           label="Reservas ativas"
           value={String(reservations?.length ?? 0)}
-          trend={`${summary?.reserve.quantity ?? 0} un. no ledger`}
+          trend={`${summary?.reserve.quantity ?? 0} não entregues`}
         />
         <StatCard
           label="Vendas confirmadas"

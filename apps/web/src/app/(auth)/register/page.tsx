@@ -10,9 +10,9 @@ import { clearSessionQueries } from "@/lib/query-cache";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthField, AuthInput } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { ApiError } from "@/services";
-import { authService } from "@/services";
-import { registerSchema } from "@/schema";
+import { ApiError } from "@repo/shared/data-access";
+import { authService } from "@repo/shared/data-access";
+import { registerSchema } from "@repo/shared";
 import { useAuthStore } from "@/store";
 
 export default function RegisterPage() {

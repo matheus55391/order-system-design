@@ -1,7 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import type {
+  ReservationDto as IReservationDto,
+  ReservationVariantDto as IReservationVariantDto,
+  ReserveFromCartRequestDto as IReserveFromCartRequestDto,
+} from "@repo/shared";
 import { TenantRefDto } from "../../../common/dto/shared.dto";
 
-export class ReserveFromCartRequestDto {
+export class ReserveFromCartRequestDto implements IReserveFromCartRequestDto {
   @ApiProperty({ format: "uuid", description: "Loja vendedora do carrinho" })
   priceTenantId!: string;
 
@@ -13,7 +18,7 @@ export class ReserveFromCartRequestDto {
   cartItemIds?: string[];
 }
 
-export class ReservationVariantDto {
+export class ReservationVariantDto implements IReservationVariantDto {
   @ApiProperty()
   id!: string;
 
@@ -33,7 +38,7 @@ export class ReservationVariantDto {
   productImageUrl!: string | null;
 }
 
-export class ReservationDto {
+export class ReservationDto implements Omit<IReservationDto, "expiresAt" | "unitPrice"> {
   @ApiProperty()
   id!: string;
 
@@ -56,7 +61,10 @@ export class ReservationDto {
   variant!: ReservationVariantDto;
 }
 
-export class ReservationWithPriceDto extends ReservationDto {
+export class ReservationWithPriceDto
+  extends ReservationDto
+  implements Omit<IReservationDto, "expiresAt">
+{
   @ApiProperty({ example: 49.9 })
   unitPrice!: number;
 }

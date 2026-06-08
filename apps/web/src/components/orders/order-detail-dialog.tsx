@@ -21,7 +21,8 @@ import {
 } from "@/lib/order-status";
 import { queryKeys } from "@/lib/query-keys";
 import { revalidateInBackground } from "@/lib/query-cache";
-import { ApiError, ordersService, type OrderResponseDto } from "@/services";
+import type { OrderResponseDto } from "@repo/shared";
+import { ApiError, ordersService } from "@repo/shared/data-access";
 import { cn } from "@/lib/utils";
 
 function formatCurrency(value: number) {

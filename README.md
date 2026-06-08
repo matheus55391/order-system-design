@@ -18,7 +18,7 @@ apps/
   web/     → Next.js (loja, marketplace, carrinho, pedidos)
 packages/
   database/  → Prisma schema + client
-  shared/    → Types e schemas Zod compartilhados
+  shared/    → Types, schemas Zod e contratos API (DTOs)
 ```
 
 ### Multi-tenancy
@@ -152,12 +152,13 @@ pnpm check-types      # TypeScript strict
 ```
 src/
   app/         → rotas Next.js (App Router)
-  components/  → UI, layouts, guards
+  components/  → UI shadcn, layouts, guards
   context/     → providers React (QueryClient, toasts)
-  lib/         → API client, utils
-  schema/      → schemas Zod (forms)
+  lib/         → API client bootstrap, utils
   store/       → Zustand (sessão global)
 ```
+
+Data access: clients HTTP em `@repo/shared/data-access` (`authService`, `cartService`, etc.). Bootstrap do web em `lib/data-access.ts` (wire Zustand + axios). Tipos e schemas em `@repo/shared`.
 
 ## Documentação da API
 

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { isTokenExpired } from "@/lib/auth-token";
-import { authService } from "@/services";
+import { authService } from "@repo/shared/data-access";
 import { useAuthStore } from "@/store";
 
 export function AuthSession({ children }: { children: React.ReactNode }) {

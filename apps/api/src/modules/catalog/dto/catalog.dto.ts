@@ -1,7 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import type {
+  ProductDto as IProductDto,
+  ProductVariantDto as IProductVariantDto,
+  StoreCatalogResponseDto as IStoreCatalogResponseDto,
+} from "@repo/shared";
 import { StoreListItemDto, TenantRefDto } from "../../../common/dto/shared.dto";
 
-export class ProductVariantDto {
+export class ProductVariantDto implements IProductVariantDto {
   @ApiProperty()
   id!: string;
 
@@ -27,7 +32,7 @@ export class ProductVariantDto {
   availableStock!: number;
 }
 
-export class ProductDto {
+export class ProductDto implements IProductDto {
   @ApiProperty()
   id!: string;
 
@@ -37,14 +42,16 @@ export class ProductDto {
   @ApiPropertyOptional()
   description!: string | null;
 
-  @ApiPropertyOptional({ example: "http://localhost:9000/products/default-product.webp" })
+  @ApiPropertyOptional({
+    example: "http://localhost:9000/products/default-product.webp",
+  })
   imageUrl!: string | null;
 
   @ApiProperty({ type: [ProductVariantDto] })
   variants!: ProductVariantDto[];
 }
 
-export class StoreCatalogResponseDto {
+export class StoreCatalogResponseDto implements IStoreCatalogResponseDto {
   @ApiProperty({ type: TenantRefDto })
   store!: TenantRefDto;
 

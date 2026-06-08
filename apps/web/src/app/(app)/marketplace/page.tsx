@@ -7,7 +7,7 @@ import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { queryKeys } from "@/lib/query-keys";
-import { catalogService } from "@/services";
+import { catalogService } from "@repo/shared/data-access";
 
 export default function MarketplacePage() {
   const tenantId = useTenantId()!;

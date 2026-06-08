@@ -1,11 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import type {
+  AuditSummaryResponseDto as IAuditSummaryResponseDto,
+  StockMovementDto as IStockMovementDto,
+  StockMovementVariantDto as IStockMovementVariantDto,
+} from "@repo/shared";
 import {
   AuditMetricDto,
   TenantRefDto,
   UserRefDto,
 } from "../../../common/dto/shared.dto";
 
-export class StockMovementVariantDto {
+export class StockMovementVariantDto implements IStockMovementVariantDto {
   @ApiProperty()
   id!: string;
 
@@ -16,12 +21,12 @@ export class StockMovementVariantDto {
   productName!: string;
 }
 
-export class StockMovementDto {
+export class StockMovementDto implements Omit<IStockMovementDto, "createdAt" | "type"> {
   @ApiProperty()
   id!: string;
 
   @ApiProperty({ enum: ["RESERVE", "RELEASE", "SALE"] })
-  type!: string;
+  type!: "RESERVE" | "RELEASE" | "SALE";
 
   @ApiProperty()
   quantity!: number;
@@ -45,7 +50,7 @@ export class StockMovementDto {
   variant!: StockMovementVariantDto;
 }
 
-export class AuditSummaryResponseDto {
+export class AuditSummaryResponseDto implements IAuditSummaryResponseDto {
   @ApiProperty({ type: AuditMetricDto })
   reserve!: AuditMetricDto;
 

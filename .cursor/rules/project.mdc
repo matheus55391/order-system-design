@@ -19,10 +19,10 @@ pnpm docker:up && pnpm minio:setup && pnpm db:setup && pnpm dev
 
 | Path | Conteúdo |
 |------|----------|
-| `apps/web/src/` | `app/`, `components/`, `context/`, `lib/`, `schema/`, `store/` |
+| `apps/web/src/` | `app/`, `components/`, `context/`, `lib/`, `store/` |
 | `apps/api/src/` | `modules/`, `infrastructure/`, `common/` |
 | `packages/database` | Prisma schema + client |
-| `packages/shared` | Types + Zod (compilar antes da API) |
+| `packages/shared` | Types + Zod + contratos API (compilar antes da API) |
 
 Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@repo/shared`
 
@@ -42,7 +42,7 @@ Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@r
 
 **Auth** — JWT HMAC em `jwt.service.ts`; sem Passport/Auth0.
 
-**Frontend** — sessão em Zustand (`store/`), forms com RHF + `@/schema`, fetch via TanStack Query + `lib/api.ts`.
+**Frontend** — sessão em Zustand (`store/`), forms com RHF + schemas de `@repo/shared`, fetch via TanStack Query + `@repo/shared/data-access`.
 
 ## Checklist
 
@@ -50,5 +50,5 @@ Aliases: web `@/*` → `src/*` · api `@/*` → `src/*` · `@repo/database`, `@r
 - [ ] Estoque via `InventoryService`
 - [ ] Cache via `CacheService` (não `redis.getClient()` direto)
 - [ ] Filas via `*Publisher` / `*Worker` (não lógica de domínio no `RabbitMqService`)
-- [ ] Schemas compartilhados em `@repo/shared`
+- [ ] Schemas e contratos em `@repo/shared` (não duplicar DTOs no web)
 - [ ] Diff mínimo, sem refatoração fora do escopo

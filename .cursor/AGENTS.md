@@ -6,7 +6,7 @@ Plataforma B2B multi-tenant com concorrência de estoque. Detalhes em `.cursor/r
 
 - **web** (3000): Next.js, Shadcn, TanStack Query, RHF, Zod, Zustand
 - **api** (3001): NestJS, JWT próprio, Prisma, Redis (lock + cache), RabbitMQ
-- **packages**: `database` (Prisma), `shared` (types/Zod)
+- **packages**: `database` (Prisma), `shared` (types/Zod/contratos API)
 
 ## Comandos
 
@@ -34,6 +34,6 @@ Doc completa: `apps/api/README.md`
 |------|------------|
 | **Fullstack** | shared → API module → `lib/api.ts` → page web |
 | **Backend** | Guards JWT, `@CurrentUser()`, `InventoryService` para estoque, `CacheService` para cache |
-| **Frontend** | `src/app`, `@/store`, `@/schema`, TanStack Query |
+| **Frontend** | `src/app`, `@/store`, `@repo/shared`, `@repo/shared/data-access`, TanStack Query |
 | **Database** | `packages/database/prisma`, `pnpm db:push` / `db:seed` |
 | **Reviewer** | tenant_id em toda query, estoque só via lock, pedidos imutáveis |

@@ -30,7 +30,7 @@ import {
 } from "@/lib/order-status";
 import { queryKeys } from "@/lib/query-keys";
 import { revalidateInBackground } from "@/lib/query-cache";
-import type { OrderResponseDto } from "@/services";
+import type { OrderResponseDto } from "@repo/shared";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;

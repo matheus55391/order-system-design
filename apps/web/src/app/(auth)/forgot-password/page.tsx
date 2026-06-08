@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthField, AuthInput } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { ApiError } from "@/services";
-import { authService } from "@/services";
-import { forgotPasswordSchema } from "@/schema";
+import { ApiError } from "@repo/shared/data-access";
+import { authService } from "@repo/shared/data-access";
+import { forgotPasswordSchema } from "@repo/shared";
 
 export default function ForgotPasswordPage() {
   const form = useForm({

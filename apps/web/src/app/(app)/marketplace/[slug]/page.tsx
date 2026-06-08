@@ -14,8 +14,8 @@ import { useTenantId } from "@/hooks/use-tenant-id";
 import { useAuthStore } from "@/store";
 import { queryKeys } from "@/lib/query-keys";
 import { revalidateInBackground } from "@/lib/query-cache";
-import { ApiError } from "@/services";
-import { cartService, catalogService } from "@/services";
+import { ApiError } from "@repo/shared/data-access";
+import { cartService, catalogService } from "@repo/shared/data-access";
 
 export default function StoreCatalogPage({
   params,
