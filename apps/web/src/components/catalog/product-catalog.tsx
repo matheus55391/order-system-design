@@ -101,7 +101,7 @@ function ProductCardGrid({
   addToCartPending?: boolean;
 }) {
   return (
-    <DashCard accent="orange">
+    <DashCard>
       <div className="flex flex-col">
         <div className="relative aspect-[4/3] w-full">
           <ProductImage src={product.imageUrl} alt={product.name} />
@@ -145,7 +145,7 @@ function ProductCardList({
   addToCartPending?: boolean;
 }) {
   return (
-    <DashCard accent="orange">
+    <DashCard>
       <div className="flex flex-col gap-4 p-4 sm:flex-row">
         <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-lg sm:aspect-square sm:w-36">
           <ProductImage src={product.imageUrl} alt={product.name} />

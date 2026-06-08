@@ -1,21 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  Clock,
-  Lock,
-  Minus,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ArrowRight, Clock, Lock, Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { ProductImage } from "@/components/product-image";
 import { ApiError } from "@/services";
 import {
@@ -23,6 +15,13 @@ import {
   ordersService,
   reservationsService,
 } from "@/services";
+
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
 
 function CartQuantityControl({
   quantity,
@@ -71,9 +70,7 @@ function CartQuantityControl({
         onChange={(e) => setValue(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.currentTarget.blur();
-          }
+          if (e.key === "Enter") e.currentTarget.blur();
         }}
         className="h-8 w-14 rounded-md border border-zinc-800 bg-zinc-900 px-1 text-center text-sm text-white"
       />
@@ -112,11 +109,18 @@ export default function CartPage() {
     refetchInterval: 5_000,
   });
 
-  const removeItem = useMutation({
+  const invalidateAll = () => {
+    void queryClient.invalidateQueries({ queryKey: ["cart"] });
+    void queryClient.invalidateQueries({ queryKey: ["reservations"] });
+    void queryClient.invalidateQueries({ queryKey: ["products"] });
+    void queryClient.invalidateQueries({ queryKey: ["audit"] });
+  };
+
+  const removeCartItem = useMutation({
     mutationFn: (itemId: string) => cartService.removeItem(itemId),
     onSuccess: () => {
-      toast.success("Item removido do carrinho");
-      void queryClient.invalidateQueries({ queryKey: ["cart"] });
+      toast.success("Item removido");
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(
@@ -128,9 +132,7 @@ export default function CartPage() {
   const updateQuantity = useMutation({
     mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
       cartService.updateItem(itemId, { quantity }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["cart"] });
-    },
+    onSuccess: invalidateAll,
     onError: (error) => {
       toast.error(
         error instanceof ApiError ? error.message : "Erro ao atualizar quantidade",
@@ -141,11 +143,8 @@ export default function CartPage() {
   const reserveFromCart = useMutation({
     mutationFn: () => reservationsService.reserveFromCart(),
     onSuccess: () => {
-      toast.success("Estoque reservado — confirme antes de expirar");
-      void queryClient.invalidateQueries({ queryKey: ["cart"] });
-      void queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      void queryClient.invalidateQueries({ queryKey: ["products"] });
-      void queryClient.invalidateQueries({ queryKey: ["audit"] });
+      toast.success("Estoque reservado");
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(
@@ -158,9 +157,7 @@ export default function CartPage() {
     mutationFn: (id: string) => reservationsService.cancelReservation(id),
     onSuccess: () => {
       toast.success("Reserva cancelada");
-      void queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      void queryClient.invalidateQueries({ queryKey: ["products"] });
-      void queryClient.invalidateQueries({ queryKey: ["audit"] });
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(
@@ -176,10 +173,8 @@ export default function CartPage() {
       }),
     onSuccess: () => {
       toast.success("Pedido confirmado");
-      void queryClient.invalidateQueries({ queryKey: ["reservations"] });
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
-      void queryClient.invalidateQueries({ queryKey: ["products"] });
-      void queryClient.invalidateQueries({ queryKey: ["audit"] });
+      invalidateAll();
       router.push("/orders");
     },
     onError: (error) => {
@@ -201,49 +196,43 @@ export default function CartPage() {
       0,
     ) ?? 0;
 
+  const cartCount = cart?.items.length ?? 0;
+  const resCount = reservations?.length ?? 0;
+  const hasCheckout = cartCount > 0 || resCount > 0;
+  const subtotal = cartTotal + reservationTotal;
+
   if (cartLoading || resLoading) {
     return <p className="text-zinc-500">Carregando carrinho...</p>;
   }
-
-  const cartCount = cart?.items.length ?? 0;
-  const resCount = reservations?.length ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Carrinho"
-        endpoint="Cart → Reservations → Order"
-        description="1) Itens no carrinho · 2) Reservar estoque · 3) Confirmar pedido"
+        description="Revise os itens, reserve o estoque e confirme o pedido"
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Carrinho" value={String(cartCount)} />
-        <StatCard label="Reservas" value={String(resCount)} trend={resCount > 0 ? "ativo" : undefined} trendUp={resCount > 0} />
-        <StatCard
-          label="Total reservado"
-          value={reservationTotal.toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          })}
-        />
-      </div>
+      {!hasCheckout && (
+        <DashCard>
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <p className="text-zinc-500">Carrinho vazio</p>
+            <div className="flex gap-4 text-sm">
+              <Link href="/store" className="text-orange-400 hover:underline">
+                Minha loja
+              </Link>
+              <Link href="/marketplace" className="text-orange-400 hover:underline">
+                Marketplace
+              </Link>
+            </div>
+          </div>
+        </DashCard>
+      )}
 
       {cartCount > 0 && (
         <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-zinc-400">
-              Itens no carrinho ({cartTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})
-            </h2>
-            <button
-              type="button"
-              onClick={() => reserveFromCart.mutate()}
-              disabled={reserveFromCart.isPending}
-              className="flex h-9 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
-            >
-              <Lock className="size-4" />
-              {reserveFromCart.isPending ? "Reservando..." : "Reservar estoque"}
-            </button>
-          </div>
+          <h2 className="text-sm font-medium text-zinc-400">
+            Itens no carrinho
+          </h2>
 
           {cart?.items.map((item) => (
             <DashCard key={item.id}>
@@ -260,13 +249,13 @@ export default function CartPage() {
                       {item.variant.productName}
                     </h3>
                     <p className="text-xs text-zinc-500">
-                      {item.variant.sku} · Loja: {item.priceTenant.name}
+                      {item.variant.sku} · {item.priceTenant.name}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      Estoque: {item.variant.availableStock}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-white">
-                      {(item.variant.price * item.quantity).toLocaleString(
-                        "pt-BR",
-                        { style: "currency", currency: "BRL" },
-                      )}
+                      {formatCurrency(item.variant.price * item.quantity)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -283,8 +272,8 @@ export default function CartPage() {
                     />
                     <button
                       type="button"
-                      onClick={() => removeItem.mutate(item.id)}
-                      disabled={removeItem.isPending}
+                      onClick={() => removeCartItem.mutate(item.id)}
+                      disabled={removeCartItem.isPending}
                       className="flex size-8 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:text-red-400"
                     >
                       <Trash2 className="size-4" />
@@ -297,29 +286,14 @@ export default function CartPage() {
         </section>
       )}
 
-      {cartCount === 0 && resCount === 0 && (
-        <DashCard>
-          <div className="flex flex-col items-center gap-4 py-16 text-center">
-            <p className="text-zinc-500">Carrinho vazio</p>
-            <div className="flex gap-4 text-sm">
-              <Link href="/store" className="text-orange-400 hover:underline">
-                Minha loja
-              </Link>
-              <Link href="/marketplace" className="text-orange-400 hover:underline">
-                Marketplace
-              </Link>
-            </div>
-          </div>
-        </DashCard>
-      )}
-
       {resCount > 0 && (
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-medium text-zinc-400">
-            Reservas ativas
+            Estoque reservado
           </h2>
+
           {reservations?.map((r) => (
-            <DashCard key={r.id} accent="orange">
+            <DashCard key={r.id}>
               <div className="flex gap-4 p-4 sm:items-center sm:justify-between">
                 <div className="flex gap-4">
                   <div className="relative size-16 shrink-0 overflow-hidden rounded-lg">
@@ -335,6 +309,9 @@ export default function CartPage() {
                     <p className="text-xs text-zinc-500">
                       {r.variant.sku} · {r.priceTenant.name}
                     </p>
+                    <p className="text-xs text-zinc-600">
+                      {r.quantity} un. · {formatCurrency(r.unitPrice)}/un.
+                    </p>
                     <div className="mt-1 flex items-center gap-1.5 text-xs text-orange-400">
                       <Clock className="size-3" />
                       Expira em {formatExpiry(r.expiresAt)}
@@ -343,10 +320,7 @@ export default function CartPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <p className="font-semibold text-white">
-                    {(r.unitPrice * r.quantity).toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
+                    {formatCurrency(r.unitPrice * r.quantity)}
                   </p>
                   <button
                     type="button"
@@ -360,30 +334,69 @@ export default function CartPage() {
               </div>
             </DashCard>
           ))}
-
-          <DashCard accent="orange">
-            <div className="flex items-center justify-between p-5">
-              <div>
-                <p className="text-sm text-zinc-500">Total do pedido</p>
-                <p className="text-2xl font-semibold text-white">
-                  {reservationTotal.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => confirmOrder.mutate()}
-                disabled={confirmOrder.isPending}
-                className="flex h-10 items-center gap-2 rounded-lg bg-orange-500 px-5 text-sm font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
-              >
-                {confirmOrder.isPending ? "Confirmando..." : "Confirmar pedido"}
-                <ArrowRight className="size-4" />
-              </button>
-            </div>
-          </DashCard>
         </section>
+      )}
+
+      {hasCheckout && (
+        <DashCard>
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="text-sm font-medium text-zinc-400">Resumo</h2>
+
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500">Subtotal</span>
+                <span className="text-white">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500">Frete</span>
+                <span className="text-emerald-400">Grátis</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-zinc-800 pt-4">
+              <div>
+                <p className="text-sm text-zinc-500">Total</p>
+                <p className="text-2xl font-semibold text-white">
+                  {formatCurrency(subtotal)}
+                </p>
+                {cartCount > 0 && resCount === 0 && (
+                  <p className="mt-1 text-xs text-zinc-600">
+                    Reserve o estoque para confirmar o pedido
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {cartCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => reserveFromCart.mutate()}
+                    disabled={reserveFromCart.isPending}
+                    className="flex h-10 items-center justify-center gap-2 rounded-lg border border-orange-500/40 px-5 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:opacity-50"
+                  >
+                    <Lock className="size-4" />
+                    {reserveFromCart.isPending
+                      ? "Reservando..."
+                      : "Reservar estoque"}
+                  </button>
+                )}
+                {resCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => confirmOrder.mutate()}
+                    disabled={confirmOrder.isPending}
+                    className="flex h-10 items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 text-sm font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
+                  >
+                    {confirmOrder.isPending
+                      ? "Confirmando..."
+                      : "Confirmar pedido"}
+                    <ArrowRight className="size-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </DashCard>
       )}
     </div>
   );

@@ -28,7 +28,7 @@ export default function MarketplacePage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {stores?.map((store) => (
           <Link key={store.id} href={`/marketplace/${store.slug}`}>
-            <DashCard accent="orange">
+            <DashCard>
               <div className="flex items-center gap-4 p-5 transition-colors hover:bg-zinc-900/30">
                 <div className="flex size-12 items-center justify-center rounded-xl bg-orange-500/10">
                   <Store className="size-6 text-orange-400" />

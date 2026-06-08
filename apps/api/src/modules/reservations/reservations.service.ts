@@ -82,6 +82,22 @@ export class ReservationsService {
     const reservationId = randomUUID();
     const expiresAt = new Date(Date.now() + this.ttlSeconds * 1000);
 
+    const reservation = await this.prisma.reservation.create({
+      data: {
+        id: reservationId,
+        tenantId: input.tenantId,
+        userId: input.userId,
+        variantId: input.variantId,
+        quantity: input.quantity,
+        priceTenantId: input.priceTenantId,
+        expiresAt,
+      },
+      include: {
+        variant: { include: { product: true, inventory: true } },
+        priceTenant: { select: { id: true, name: true, slug: true } },
+      },
+    });
+
     try {
       await this.inventoryService.reserveStock(
         input.variantId,
@@ -94,22 +110,6 @@ export class ReservationsService {
         },
       );
 
-      const reservation = await this.prisma.reservation.create({
-        data: {
-          id: reservationId,
-          tenantId: input.tenantId,
-          userId: input.userId,
-          variantId: input.variantId,
-          quantity: input.quantity,
-          priceTenantId: input.priceTenantId,
-          expiresAt,
-        },
-        include: {
-          variant: { include: { product: true, inventory: true } },
-          priceTenant: { select: { id: true, name: true, slug: true } },
-        },
-      });
-
       await this.rabbitMq.publishReservationExpiry(
         reservation.id,
         this.ttlSeconds * 1000,
@@ -118,7 +118,10 @@ export class ReservationsService {
       return this.formatReservation(reservation);
     } catch (error) {
       await this.prisma.reservation
-        .delete({ where: { id: reservationId } })
+        .update({
+          where: { id: reservationId },
+          data: { status: ReservationStatus.CANCELED },
+        })
         .catch(() => undefined);
       throw error;
     }
