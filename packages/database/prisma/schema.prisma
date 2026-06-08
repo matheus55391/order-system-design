@@ -22,6 +22,7 @@ enum ReservationStatus {
 enum OrderStatus {
   PENDING
   CONFIRMED
+  DELIVERED
   CANCELED
   EXPIRED
 }

@@ -9,6 +9,15 @@ import { toast } from "sonner";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ProductImage } from "@/components/product-image";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -104,6 +113,7 @@ export default function CartPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const tenantId = useTenantId()!;
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   const { data: cart, isPending: cartPending } = useQuery({
     queryKey: queryKeys.cart(tenantId),
@@ -180,9 +190,11 @@ export default function CartPage() {
       }),
     onSuccess: () => {
       toast.success("Pedido confirmado");
+      setConfirmDialogOpen(false);
       revalidateInBackground(
         queryClient,
         queryKeys.orders(tenantId),
+        queryKeys.ordersIncoming(tenantId),
       );
       revalidateCheckoutData();
       router.push("/orders");
@@ -394,13 +406,11 @@ export default function CartPage() {
                 {resCount > 0 && (
                   <button
                     type="button"
-                    onClick={() => confirmOrder.mutate()}
+                    onClick={() => setConfirmDialogOpen(true)}
                     disabled={confirmOrder.isPending}
                     className="flex h-10 items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 text-sm font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
                   >
-                    {confirmOrder.isPending
-                      ? "Confirmando..."
-                      : "Confirmar pedido"}
+                    Confirmar pedido
                     <ArrowRight className="size-4" />
                   </button>
                 )}
@@ -409,6 +419,47 @@ export default function CartPage() {
           </div>
         </DashCard>
       )}
+
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="border-zinc-800 bg-zinc-950 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Simulação de compra B2B
+            </DialogTitle>
+            <DialogDescription>
+              Este é um ambiente de estudo. Não há cobrança real nem gateway de
+              pagamento — ao confirmar, o pedido será criado e o estoque debitado
+              como se a compra tivesse sido paga.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-zinc-400">
+            Total:{" "}
+            <span className="font-semibold text-white">
+              {formatCurrency(subtotal)}
+            </span>
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmDialogOpen(false)}
+              className="border-zinc-800 bg-transparent text-muted-foreground hover:bg-zinc-900 hover:text-foreground"
+            >
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              disabled={confirmOrder.isPending}
+              onClick={() => confirmOrder.mutate()}
+              className="bg-orange-500 text-black hover:bg-orange-400"
+            >
+              {confirmOrder.isPending
+                ? "Confirmando..."
+                : "Sim, confirmar compra"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

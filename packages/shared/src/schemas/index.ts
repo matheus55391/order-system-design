@@ -29,6 +29,10 @@ export const confirmOrderSchema = z.object({
   reservationIds: z.array(z.string().uuid()).min(1),
 });
 
+export const updateOrderStatusSchema = z.object({
+  status: z.enum(["DELIVERED", "CANCELED"]),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email("E-mail inválido"),
 });
@@ -85,6 +89,7 @@ export type AddToCartInput = z.infer<typeof addToCartSchema>;
 export type ReserveFromCartInput = z.infer<typeof reserveFromCartSchema>;
 export type UpdateCartItemInput = z.infer<typeof updateCartItemSchema>;
 export type ConfirmOrderInput = z.infer<typeof confirmOrderSchema>;
+export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type CreateProductFormInput = z.infer<typeof createProductFormSchema>;

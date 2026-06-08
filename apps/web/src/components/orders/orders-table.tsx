@@ -23,6 +23,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useTenantId } from "@/hooks/use-tenant-id";
+import {
+  getOrderStatusLabel,
+  orderStatusStyles,
+  type OrdersViewMode,
+} from "@/lib/order-status";
 import { queryKeys } from "@/lib/query-keys";
 import { revalidateInBackground } from "@/lib/query-cache";
 import type { OrderResponseDto } from "@/services";
@@ -30,21 +35,7 @@ import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
 
-const statusLabels: Record<string, string> = {
-  PENDING: "Pendente",
-  CONFIRMED: "Confirmado",
-  CANCELED: "Cancelado",
-  EXPIRED: "Expirado",
-};
-
-const statusStyles: Record<string, string> = {
-  PENDING: "bg-zinc-800 text-zinc-400",
-  CONFIRMED: "bg-orange-500/10 text-orange-400",
-  CANCELED: "bg-red-500/10 text-red-400",
-  EXPIRED: "bg-zinc-800 text-zinc-500",
-};
-
-type SortKey = "id" | "createdAt" | "status" | "itemCount" | "total";
+type SortKey = "id" | "createdAt" | "status" | "itemCount" | "total" | "party";
 type SortDir = "asc" | "desc";
 
 function formatCurrency(value: number) {
@@ -70,6 +61,18 @@ function itemsSummary(order: OrderResponseDto) {
   );
   if (parts.length <= 2) return parts.join(", ");
   return `${parts.slice(0, 2).join(", ")} +${parts.length - 2}`;
+}
+
+function counterpartyLabel(order: OrderResponseDto, mode: OrdersViewMode) {
+  if (mode === "incoming") {
+    return order.buyerTenant?.name ?? "—";
+  }
+  const suppliers = [
+    ...new Map(
+      order.items.map((item) => [item.priceTenant.id, item.priceTenant.name]),
+    ).values(),
+  ];
+  return suppliers.join(", ") || "—";
 }
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
@@ -107,9 +110,13 @@ function SortableHead({
 export function OrdersTable({
   orders,
   isPending,
+  mode,
+  onOrderClick,
 }: {
   orders: OrderResponseDto[];
   isPending?: boolean;
+  mode: OrdersViewMode;
+  onOrderClick?: (order: OrderResponseDto) => void;
 }) {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
@@ -118,14 +125,17 @@ export function OrdersTable({
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  const partyLabel = mode === "incoming" ? "Comprador" : "Fornecedor";
+
   const rows = useMemo(
     () =>
       orders.map((order) => ({
         ...order,
         itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
         summary: itemsSummary(order),
+        party: counterpartyLabel(order, mode),
       })),
-    [orders],
+    [orders, mode],
   );
 
   const filtered = useMemo(() => {
@@ -135,7 +145,8 @@ export function OrdersTable({
       (row) =>
         row.id.toLowerCase().includes(q) ||
         row.status.toLowerCase().includes(q) ||
-        statusLabels[row.status]?.toLowerCase().includes(q) ||
+        getOrderStatusLabel(row.status, mode).toLowerCase().includes(q) ||
+        row.party.toLowerCase().includes(q) ||
         row.summary.toLowerCase().includes(q) ||
         row.items.some(
           (item) =>
@@ -143,7 +154,7 @@ export function OrdersTable({
             item.variant.sku.toLowerCase().includes(q),
         ),
     );
-  }, [rows, search]);
+  }, [rows, search, mode]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
@@ -158,8 +169,11 @@ export function OrdersTable({
         av = a.id;
         bv = b.id;
       } else if (sortKey === "status") {
-        av = statusLabels[a.status] ?? a.status;
-        bv = statusLabels[b.status] ?? b.status;
+        av = getOrderStatusLabel(a.status, mode);
+        bv = getOrderStatusLabel(b.status, mode);
+      } else if (sortKey === "party") {
+        av = a.party;
+        bv = b.party;
       } else {
         av = a[sortKey];
         bv = b[sortKey];
@@ -175,7 +189,7 @@ export function OrdersTable({
         : Number(bv) - Number(av);
     });
     return list;
-  }, [filtered, sortKey, sortDir]);
+  }, [filtered, sortKey, sortDir, mode]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -202,9 +216,13 @@ export function OrdersTable({
   };
 
   const reload = () => {
-    if (tenantId) {
-      revalidateInBackground(queryClient, queryKeys.orders(tenantId));
-    }
+    if (!tenantId) return;
+    revalidateInBackground(
+      queryClient,
+      mode === "incoming"
+        ? queryKeys.ordersIncoming(tenantId)
+        : queryKeys.orders(tenantId),
+    );
   };
 
   const rangeStart =
@@ -272,6 +290,14 @@ export function OrdersTable({
               </TableHead>
               <TableHead className="px-3 text-muted-foreground">
                 <SortableHead
+                  label={partyLabel}
+                  active={sortKey === "party"}
+                  dir={sortDir}
+                  onClick={() => toggleSort("party")}
+                />
+              </TableHead>
+              <TableHead className="px-3 text-muted-foreground">
+                <SortableHead
                   label="Status"
                   active={sortKey === "status"}
                   dir={sortDir}
@@ -300,19 +326,23 @@ export function OrdersTable({
             {pageRows.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="px-3 py-16 text-center text-muted-foreground"
                 >
                   {rows.length === 0 ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <p>Nenhum pedido ainda</p>
-                      <Link
-                        href="/marketplace"
-                        className="text-sm text-orange-400 hover:underline"
-                      >
-                        Começar compra
-                      </Link>
-                    </div>
+                    mode === "incoming" ? (
+                      <p>Nenhum pedido recebido ainda</p>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <p>Nenhum pedido feito ainda</p>
+                        <Link
+                          href="/marketplace"
+                          className="text-sm text-orange-400 hover:underline"
+                        >
+                          Começar compra
+                        </Link>
+                      </div>
+                    )
                   ) : (
                     "Nenhum resultado para o filtro aplicado"
                   )}
@@ -320,21 +350,32 @@ export function OrdersTable({
               </TableRow>
             ) : (
               pageRows.map((order) => (
-                <TableRow key={order.id} className="hover:bg-muted/20">
+                <TableRow
+                  key={order.id}
+                  className={cn(
+                    "hover:bg-muted/20",
+                    onOrderClick && "cursor-pointer",
+                  )}
+                  onClick={() => onOrderClick?.(order)}
+                >
                   <TableCell className="px-3 py-3 font-mono text-xs text-foreground">
                     {order.id.slice(0, 8)}…
                   </TableCell>
                   <TableCell className="px-3 py-3 text-sm text-muted-foreground">
                     {formatDate(order.createdAt)}
                   </TableCell>
+                  <TableCell className="px-3 py-3 text-sm text-foreground">
+                    {order.party}
+                  </TableCell>
                   <TableCell className="px-3 py-3">
                     <span
                       className={cn(
                         "rounded-md px-2 py-0.5 text-xs font-medium",
-                        statusStyles[order.status] ?? statusStyles.PENDING,
+                        orderStatusStyles[order.status] ??
+                          orderStatusStyles.PENDING,
                       )}
                     >
-                      {statusLabels[order.status] ?? order.status}
+                      {getOrderStatusLabel(order.status, mode)}
                     </span>
                   </TableCell>
                   <TableCell className="px-3 py-3 text-foreground">

@@ -6,6 +6,11 @@ export class ConfirmOrderRequestDto {
   reservationIds!: string[];
 }
 
+export class UpdateOrderStatusRequestDto {
+  @ApiProperty({ enum: ["DELIVERED", "CANCELED"] })
+  status!: "DELIVERED" | "CANCELED";
+}
+
 export class OrderItemVariantDto {
   @ApiProperty()
   id!: string;
@@ -47,7 +52,9 @@ export class OrderResponseDto {
   @ApiProperty()
   id!: string;
 
-  @ApiProperty({ enum: ["PENDING", "CONFIRMED", "CANCELED", "EXPIRED"] })
+  @ApiProperty({
+    enum: ["PENDING", "CONFIRMED", "DELIVERED", "CANCELED", "EXPIRED"],
+  })
   status!: string;
 
   @ApiProperty({ example: 149.7 })
@@ -55,6 +62,9 @@ export class OrderResponseDto {
 
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: Date;
+
+  @ApiProperty({ type: TenantRefDto, required: false })
+  buyerTenant?: TenantRefDto;
 
   @ApiProperty({ type: [OrderItemDto] })
   items!: OrderItemDto[];

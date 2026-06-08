@@ -45,9 +45,9 @@ export default function StorePage() {
     enabled: Boolean(tenantId),
   });
 
-  const { data: orders, isPending: ordersPending } = useQuery({
-    queryKey: queryKeys.orders(tenantId),
-    queryFn: () => ordersService.getOrders(),
+  const { data: incomingOrders, isPending: ordersPending } = useQuery({
+    queryKey: queryKeys.ordersIncoming(tenantId),
+    queryFn: () => ordersService.getIncomingOrders(),
     enabled: Boolean(tenantId),
   });
 
@@ -58,19 +58,20 @@ export default function StorePage() {
   });
 
   const orderStats = useMemo(() => {
-    const list = orders ?? [];
-    const confirmed = list.filter((o) => o.status === "CONFIRMED");
+    const list = incomingOrders ?? [];
+    const processing = list.filter((o) => o.status === "CONFIRMED");
+    const delivered = list.filter((o) => o.status === "DELIVERED");
     return {
       total: list.length,
-      confirmed: confirmed.length,
-      revenue: confirmed.reduce((sum, o) => sum + o.total, 0),
+      processing: processing.length,
+      revenue: delivered.reduce((sum, o) => sum + o.total, 0),
     };
-  }, [orders]);
+  }, [incomingOrders]);
 
   const isPending =
     (summaryPending && !summary) ||
     (movementsPending && !movements) ||
-    (ordersPending && !orders) ||
+    (ordersPending && !incomingOrders) ||
     (reservationsPending && !reservations);
 
   if (isPending) {
@@ -97,8 +98,8 @@ export default function StorePage() {
           trendUp
         />
         <StatCard
-          label="Pedidos"
-          value={String(orderStats.confirmed)}
+          label="Pedidos recebidos"
+          value={String(orderStats.processing)}
           trend={`${orderStats.total} total`}
           trendUp
         />

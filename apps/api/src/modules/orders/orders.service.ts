@@ -5,8 +5,23 @@ import {
 } from "@nestjs/common";
 import { OrderStatus, ReservationStatus } from "@repo/database";
 import { Prisma } from "@repo/database";
+import type { UpdateOrderStatusInput } from "@repo/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { InventoryService } from "../inventory/inventory.service";
+
+const orderInclude = {
+  tenant: { select: { id: true, name: true, slug: true } },
+  items: {
+    include: {
+      variant: { include: { product: true } },
+      priceTenant: { select: { id: true, name: true, slug: true } },
+    },
+  },
+} as const;
+
+type OrderWithRelations = Prisma.OrderGetPayload<{
+  include: typeof orderInclude;
+}>;
 
 @Injectable()
 export class OrdersService {
@@ -87,14 +102,7 @@ export class OrdersService {
           total,
           items: { create: orderItems },
         },
-        include: {
-          items: {
-            include: {
-              variant: { include: { product: true } },
-              priceTenant: { select: { id: true, name: true, slug: true } },
-            },
-          },
-        },
+        include: orderInclude,
       });
 
       for (const reservation of reservations) {
@@ -124,61 +132,132 @@ export class OrdersService {
       );
     }
 
-    return this.formatOrder(order);
+    return this.formatOrder(order, { perspective: "buyer" });
   }
 
   async listOrders(tenantId: string, userId: string) {
     const orders = await this.prisma.order.findMany({
       where: { tenantId, userId },
-      include: {
-        items: {
-          include: {
-            variant: { include: { product: true } },
-            priceTenant: { select: { id: true, name: true, slug: true } },
-          },
-        },
-      },
+      include: orderInclude,
       orderBy: { createdAt: "desc" },
     });
 
-    return orders.map((order) => this.formatOrder(order));
+    return orders.map((order) => this.formatOrder(order, { perspective: "buyer" }));
+  }
+
+  async listIncomingOrders(sellerTenantId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        items: { some: { priceTenantId: sellerTenantId } },
+      },
+      include: orderInclude,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return orders.map((order) =>
+      this.formatOrder(order, {
+        perspective: "seller",
+        sellerTenantId,
+      }),
+    );
   }
 
   async getOrder(tenantId: string, userId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({
-      where: { id: orderId, tenantId, userId },
-      include: {
-        items: {
-          include: {
-            variant: { include: { product: true } },
-            priceTenant: { select: { id: true, name: true, slug: true } },
-          },
-        },
-      },
+      where: { id: orderId },
+      include: orderInclude,
     });
 
     if (!order) throw new NotFoundException("Pedido não encontrado");
-    return this.formatOrder(order);
+
+    const isBuyer = order.tenantId === tenantId && order.userId === userId;
+    const isSeller = order.items.some(
+      (item) => item.priceTenantId === tenantId,
+    );
+
+    if (!isBuyer && !isSeller) {
+      throw new NotFoundException("Pedido não encontrado");
+    }
+
+    if (isSeller && !isBuyer) {
+      return this.formatOrder(order, {
+        perspective: "seller",
+        sellerTenantId: tenantId,
+      });
+    }
+
+    return this.formatOrder(order, { perspective: "buyer" });
+  }
+
+  async updateOrderStatus(
+    sellerTenantId: string,
+    orderId: string,
+    input: UpdateOrderStatusInput,
+  ) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        items: { some: { priceTenantId: sellerTenantId } },
+      },
+      include: orderInclude,
+    });
+
+    if (!order) throw new NotFoundException("Pedido não encontrado");
+
+    if (order.status !== OrderStatus.CONFIRMED) {
+      throw new BadRequestException(
+        "Só é possível alterar pedidos em processamento",
+      );
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: input.status as OrderStatus },
+      include: orderInclude,
+    });
+
+    return this.formatOrder(updated, {
+      perspective: "seller",
+      sellerTenantId,
+    });
   }
 
   private formatOrder(
-    order: Prisma.OrderGetPayload<{
-      include: {
-        items: {
-          include: {
-            variant: { include: { product: true } };
-            priceTenant: { select: { id: true; name: true; slug: true } };
-          };
-        };
-      };
-    }>,
+    order: OrderWithRelations,
+    options: {
+      perspective: "buyer" | "seller";
+      sellerTenantId?: string;
+    },
   ) {
+    let items = order.items;
+    if (options.perspective === "seller" && options.sellerTenantId) {
+      items = items.filter(
+        (item) => item.priceTenantId === options.sellerTenantId,
+      );
+    }
+
+    const total =
+      options.perspective === "seller"
+        ? items.reduce(
+            (sum, item) => sum + Number(item.unitPrice) * item.quantity,
+            0,
+          )
+        : Number(order.total);
+
     return {
       id: order.id,
       status: order.status,
-      total: Number(order.total),
+      total,
       createdAt: order.createdAt,
-      items: order.items.map((item) => ({
+      buyerTenant:
+        options.perspective === "seller"
+          ? {
+              id: order.tenant.id,
+              name: order.tenant.name,
+              slug: order.tenant.slug,
+            }
+          : undefined,
+      items: items.map((item) => ({
         id: item.id,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),

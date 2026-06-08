@@ -6,7 +6,12 @@ export type ReservationStatus =
   | "EXPIRED"
   | "CANCELED";
 
-export type OrderStatus = "PENDING" | "CONFIRMED" | "CANCELED" | "EXPIRED";
+export type OrderStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "DELIVERED"
+  | "CANCELED"
+  | "EXPIRED";
 
 export interface JwtPayload {
   sub: string;

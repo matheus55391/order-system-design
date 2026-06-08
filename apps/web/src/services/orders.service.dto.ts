@@ -4,6 +4,10 @@ export interface ConfirmOrderRequestDto {
   reservationIds: string[];
 }
 
+export interface UpdateOrderStatusRequestDto {
+  status: "DELIVERED" | "CANCELED";
+}
+
 export interface OrderItemVariantDto {
   id: string;
   sku: string;
@@ -26,5 +30,6 @@ export interface OrderResponseDto {
   status: string;
   total: number;
   createdAt: string;
+  buyerTenant?: TenantRefDto;
   items: OrderItemDto[];
 }
