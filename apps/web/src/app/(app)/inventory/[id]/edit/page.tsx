@@ -7,7 +7,9 @@ import { useRouter } from "next/navigation";
 import { use, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { AuthField, authInputClass } from "@/components/auth/auth-field";
+import { AuthField, AuthInput } from "@/components/auth/auth-field";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ApiError } from "@/services";
@@ -220,11 +222,7 @@ export default function EditProductPage({
             label="Nome"
             error={productForm.formState.errors.name?.message}
           >
-            <input
-              id="name"
-              className={authInputClass()}
-              {...productForm.register("name")}
-            />
+            <AuthInput id="name" {...productForm.register("name")} />
           </AuthField>
 
           <AuthField
@@ -232,10 +230,9 @@ export default function EditProductPage({
             label="Descrição"
             error={productForm.formState.errors.description?.message}
           >
-            <textarea
+            <Textarea
               id="description"
               rows={3}
-              className={authInputClass("h-auto py-2")}
               {...productForm.register("description")}
             />
           </AuthField>
@@ -245,20 +242,16 @@ export default function EditProductPage({
             label="URL da imagem"
             error={productForm.formState.errors.imageUrl?.message}
           >
-            <input
-              id="imageUrl"
-              className={authInputClass()}
-              {...productForm.register("imageUrl")}
-            />
+            <AuthInput id="imageUrl" {...productForm.register("imageUrl")} />
           </AuthField>
 
-          <button
+          <Button
             type="submit"
             disabled={saveProduct.isPending}
-            className="h-9 w-fit rounded-lg bg-orange-500 px-4 text-sm font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
+            className="w-fit"
           >
             {saveProduct.isPending ? "Salvando..." : "Salvar produto"}
-          </button>
+          </Button>
         </form>
       </DashCard>
 
@@ -290,62 +283,44 @@ export default function EditProductPage({
               label="SKU"
               error={variantForm.formState.errors.sku?.message}
             >
-              <input
-                id="new-sku"
-                className={authInputClass()}
-                {...variantForm.register("sku")}
-              />
+              <AuthInput id="new-sku" {...variantForm.register("sku")} />
             </AuthField>
             <AuthField
               id="new-price"
               label="Preço (R$)"
               error={variantForm.formState.errors.price?.message}
             >
-              <input
+              <AuthInput
                 id="new-price"
                 type="number"
                 step="0.01"
                 min="0"
-                className={authInputClass()}
                 {...variantForm.register("price", { valueAsNumber: true })}
               />
             </AuthField>
             <AuthField id="new-size" label="Tamanho">
-              <input
-                id="new-size"
-                className={authInputClass()}
-                {...variantForm.register("size")}
-              />
+              <AuthInput id="new-size" {...variantForm.register("size")} />
             </AuthField>
             <AuthField id="new-color" label="Cor">
-              <input
-                id="new-color"
-                className={authInputClass()}
-                {...variantForm.register("color")}
-              />
+              <AuthInput id="new-color" {...variantForm.register("color")} />
             </AuthField>
             <AuthField
               id="new-stock"
               label="Estoque"
               error={variantForm.formState.errors.totalStock?.message}
             >
-              <input
+              <AuthInput
                 id="new-stock"
                 type="number"
                 min="0"
-                className={authInputClass()}
                 {...variantForm.register("totalStock", { valueAsNumber: true })}
               />
             </AuthField>
           </div>
 
-          <button
-            type="submit"
-            disabled={addVariant.isPending}
-            className="h-9 w-fit rounded-lg border border-zinc-700 px-4 text-sm text-zinc-300 hover:text-white disabled:opacity-50"
-          >
+          <Button type="submit" variant="outline" disabled={addVariant.isPending} className="w-fit">
             {addVariant.isPending ? "Adicionando..." : "Adicionar variante"}
-          </button>
+          </Button>
         </form>
       </DashCard>
 
@@ -415,45 +390,27 @@ function VariantEditor({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <input
-            className={authInputClass()}
-            placeholder="SKU"
-            {...form.register("sku")}
-          />
-          <input
-            className={authInputClass()}
-            placeholder="Tamanho"
-            {...form.register("size")}
-          />
-          <input
-            className={authInputClass()}
-            placeholder="Cor"
-            {...form.register("color")}
-          />
-          <input
+          <AuthInput placeholder="SKU" {...form.register("sku")} />
+          <AuthInput placeholder="Tamanho" {...form.register("size")} />
+          <AuthInput placeholder="Cor" {...form.register("color")} />
+          <AuthInput
             type="number"
             step="0.01"
             min="0"
-            className={authInputClass()}
             placeholder="Preço"
             {...form.register("price", { valueAsNumber: true })}
           />
-          <input
+          <AuthInput
             type="number"
             min={variant.reservedStock}
-            className={authInputClass()}
             placeholder="Estoque total"
             {...form.register("totalStock", { valueAsNumber: true })}
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={disabled}
-          className="h-8 w-fit rounded-lg border border-zinc-700 px-3 text-xs text-zinc-400 hover:text-white disabled:opacity-50"
-        >
+        <Button type="submit" variant="outline" size="sm" disabled={disabled} className="w-fit">
           Salvar variante
-        </button>
+        </Button>
       </form>
     </DashCard>
   );

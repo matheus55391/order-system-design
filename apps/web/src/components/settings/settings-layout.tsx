@@ -8,6 +8,7 @@ import {
   Store,
   Users,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { SettingsTab } from "@/lib/tenant-settings";
 import { cn } from "@/lib/utils";
 
@@ -91,20 +92,19 @@ export function SettingsSidebar({
         const Icon = item.icon;
         const isActive = active === item.id;
         return (
-          <button
+          <Button
             key={item.id}
             type="button"
+            variant={isActive ? "secondary" : "ghost"}
             onClick={() => onChange(item.id)}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-              isActive
-                ? "bg-zinc-800/80 text-white"
-                : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300",
+              "w-full justify-start gap-2.5 px-3 py-2.5 text-sm font-medium",
+              !isActive && "text-muted-foreground",
             )}
           >
             <Icon className="size-4 shrink-0" />
             {item.label}
-          </button>
+          </Button>
         );
       })}
     </nav>

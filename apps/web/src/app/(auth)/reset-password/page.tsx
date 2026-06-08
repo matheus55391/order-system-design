@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthButton } from "@/components/auth/auth-button";
-import { AuthField, authInputClass } from "@/components/auth/auth-field";
+import { AuthField, AuthInput } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ApiError } from "@/services";
 import { authService } from "@/services";
@@ -71,11 +71,10 @@ function ResetPasswordForm() {
           label="Nova senha"
           error={form.formState.errors.password?.message}
         >
-          <input
+          <AuthInput
             id="password"
             type="password"
             placeholder="Mínimo 6 caracteres"
-            className={authInputClass()}
             {...form.register("password")}
           />
         </AuthField>

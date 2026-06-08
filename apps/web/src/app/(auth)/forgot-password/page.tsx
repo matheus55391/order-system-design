@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthButton } from "@/components/auth/auth-button";
-import { AuthField, authInputClass } from "@/components/auth/auth-field";
+import { AuthField, AuthInput } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ApiError } from "@/services";
 import { authService } from "@/services";
@@ -41,11 +41,10 @@ export default function ForgotPasswordPage() {
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <AuthField id="email" label="E-mail" error={form.formState.errors.email?.message}>
-          <input
+          <AuthInput
             id="email"
             type="email"
             placeholder="buyer@acme.com"
-            className={authInputClass()}
             {...form.register("email")}
           />
         </AuthField>

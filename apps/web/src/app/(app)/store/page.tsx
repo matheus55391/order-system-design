@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { DashCard } from "@/components/dashboard/dash-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { Button } from "@/components/ui/button";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -199,36 +200,33 @@ export default function StorePage() {
                 Compras B2B são feitas no marketplace — produtos de outras lojas
                 com preço do vendedor.
               </p>
-              <Link
-                href="/inventory"
-                className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white"
-              >
-                <span className="flex items-center gap-2">
-                  <Package className="size-4 text-orange-400" />
-                  Gerenciar estoque
-                </span>
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="/marketplace"
-                className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white"
-              >
-                <span className="flex items-center gap-2">
-                  <Store className="size-4 text-zinc-400" />
-                  Ir ao marketplace
-                </span>
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="/orders"
-                className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white"
-              >
-                <span className="flex items-center gap-2">
-                  <Package className="size-4 text-zinc-400" />
-                  Ver pedidos
-                </span>
-                <ArrowRight className="size-4" />
-              </Link>
+              <Button variant="outline" asChild className="h-auto justify-between px-4 py-3">
+                <Link href="/inventory">
+                  <span className="flex items-center gap-2">
+                    <Package className="size-4 text-primary" />
+                    Gerenciar estoque
+                  </span>
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-auto justify-between px-4 py-3">
+                <Link href="/marketplace">
+                  <span className="flex items-center gap-2">
+                    <Store className="size-4 text-muted-foreground" />
+                    Ir ao marketplace
+                  </span>
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-auto justify-between px-4 py-3">
+                <Link href="/orders">
+                  <span className="flex items-center gap-2">
+                    <Package className="size-4 text-muted-foreground" />
+                    Ver pedidos
+                  </span>
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
             </div>
           </DashCard>
         </div>

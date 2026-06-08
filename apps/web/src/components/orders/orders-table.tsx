@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { authInputClass } from "@/components/auth/auth-field";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -244,7 +244,7 @@ export function OrdersTable({
               setSearch(e.target.value);
               setPage(1);
             }}
-            className={cn(authInputClass(), "h-9 max-w-xs")}
+            className="h-9 max-w-xs"
           />
           <Button
             type="button"
@@ -368,15 +368,16 @@ export function OrdersTable({
                     {order.party}
                   </TableCell>
                   <TableCell className="px-3 py-3">
-                    <span
+                    <Badge
+                      variant="outline"
                       className={cn(
-                        "rounded-md px-2 py-0.5 text-xs font-medium",
+                        "border-transparent",
                         orderStatusStyles[order.status] ??
                           orderStatusStyles.PENDING,
                       )}
                     >
                       {getOrderStatusLabel(order.status, mode)}
-                    </span>
+                    </Badge>
                   </TableCell>
                   <TableCell className="px-3 py-3 text-foreground">
                     {order.itemCount}

@@ -22,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { authInputClass } from "@/components/auth/auth-field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -213,7 +212,7 @@ export function InventoryTable({
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className={cn(authInputClass(), "h-9 max-w-xs")}
+              className="h-9 max-w-xs"
             />
             <Button
               type="button"

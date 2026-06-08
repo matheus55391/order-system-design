@@ -64,13 +64,15 @@ function DemoApiKey({ tenantSlug }: { tenantSlug: string }) {
       <code className="flex-1 truncate rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-left text-xs text-zinc-400">
         {key}
       </code>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="icon"
         onClick={copy}
-        className="flex size-9 shrink-0 items-center justify-center rounded-md border border-zinc-800 text-zinc-500 hover:text-white"
+        className="size-9 shrink-0"
       >
         {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -450,14 +452,16 @@ export default function SettingsPage() {
                               : "Aguardando primeiro evento"}
                           </p>
                           <div className="mt-auto flex justify-end pt-2">
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="icon"
                               onClick={() => removeWebhook(wh.id)}
-                              className="text-zinc-600 hover:text-red-400"
+                              className="size-7 text-muted-foreground hover:text-destructive"
                               title="Remover"
                             >
                               <Trash2 className="size-4" />
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       </div>

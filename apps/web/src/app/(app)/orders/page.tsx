@@ -6,11 +6,11 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { OrderDetailDialog } from "@/components/orders/order-detail-dialog";
 import { OrdersTable } from "@/components/orders/orders-table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTenantId } from "@/hooks/use-tenant-id";
 import type { OrdersViewMode } from "@/lib/order-status";
 import { queryKeys } from "@/lib/query-keys";
 import { ordersService, type OrderResponseDto } from "@/services";
-import { cn } from "@/lib/utils";
 
 const tabs: { id: OrdersViewMode; label: string }[] = [
   { id: "incoming", label: "Recebidos" },
@@ -72,23 +72,15 @@ export default function OrdersPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setMode(tab.id)}
-            className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-              mode === tab.id
-                ? "bg-orange-500 text-black"
-                : "border border-zinc-800 text-zinc-400 hover:text-white",
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={mode} onValueChange={(v) => setMode(v as OrdersViewMode)}>
+        <TabsList>
+          {tabs.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Total" value={String(stats.total)} />

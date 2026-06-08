@@ -1,7 +1,8 @@
 import { ArrowRight, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface AuthButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface AuthButtonProps extends React.ComponentProps<typeof Button> {
   loading?: boolean;
 }
 
@@ -13,14 +14,10 @@ export function AuthButton({
   ...props
 }: AuthButtonProps) {
   return (
-    <button
+    <Button
       type="submit"
       disabled={disabled || loading}
-      className={cn(
-        "flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orange-500 text-sm font-semibold text-black transition-colors",
-        "hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60",
-        className,
-      )}
+      className={cn("h-11 w-full", className)}
       {...props}
     >
       {loading ? (
@@ -31,6 +28,6 @@ export function AuthButton({
           <ArrowRight className="size-4" />
         </>
       )}
-    </button>
+    </Button>
   );
 }
